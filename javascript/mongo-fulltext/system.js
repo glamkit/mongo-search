@@ -9,7 +9,8 @@ STEMMING = 'porter'; // doesn't do anything yet
 TOKENIZING = 'standard';// doesn't do anything yet
 
 function ft_index_all(coll_name) {
-  cur = db.coll_name.find
+  cur = db.coll_name.find();
+  cur.forEach(function(x) { ft_index_single_record(coll_name, x); });
 }
   
 function ft_index_single_record(coll_name, record) {
