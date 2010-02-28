@@ -1,6 +1,9 @@
 //
 // simple runner to run toplevel tests in jstests
 //
+// to run: 
+//   ./mongo jstests/_runner.js
+
 var files = listFiles("jstests");
 
 files.forEach(
