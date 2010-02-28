@@ -8,7 +8,15 @@ INDEXED_FIELDS_AND_WEIGHTS = {
 STEMMING = 'porter'; // doesn't do anything yet
 TOKENIZING = 'standard';// doesn't do anything yet
 
-function mft_search() {
+function mft_search(coll_name, query_obj) {
+  // check for $search member on query_obj
+  // if it doesn't exist, pass through to regular .find
+  // if it does, parse the ft query string, and add the appropriate filter
+  // clause to the non-ft-search components, execute that, then
+  // score every remaining document, and put those sorted IDs and scores in a record in 
+  // a private collection (hashed by the whole query obj, which we can check next time around)
+  // then iterate through the IDs and scores and return the corrpesponding records with the IDs
+  // attached to them, in a way that emulates a cursor object.
   // what hsould this do?
 }
 
