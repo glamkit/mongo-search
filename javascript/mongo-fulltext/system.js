@@ -8,22 +8,33 @@ INDEXED_FIELDS_AND_WEIGHTS = {
 STEMMING = 'porter'; // doesn't do anything yet
 TOKENIZING = 'standard';// doesn't do anything yet
 
-function index_record(coll_name, record_id) {
-  rec = db[coll_name].find_one({'_id': record_id});
+function ft_index_all(coll_name) {
+  cur = db.coll_name.find
+}
+  
+function ft_index_single_record(coll_name, record) {
   coll_fields = INDEXED_FIELDS_AND_WEIGHTS[coll_name]
   for (var f in coll_fields) {
-    extract_and_store_field_tokens(coll_name, rec, f);
+    extract_and_store_field_tokens(coll_name, record, f);
   }
+}
+
+function ft_index_single_record_from_id(coll_name, record_id) {
+  rec = db[coll_name].find_one({'_id': record_id});
+  ft_index_single_record(rec);
 }
 
 function extract_and_store_field_tokens(coll_name, record, field) {
   contents = record[field];
-  processed_contents = stem_and_tokenise(contents);
+  if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
+    return;
+  }
+  processed_contents = stem_and_tokenize(contents);
   store_postings(coll_name, record, field, processed_contents); // we want it in postings list
   record['_extracted_' + field] = processed_contents; // but also in the record, for various reasons.
 }
 
-function stem_and_tokenise(field_contents) {
+function stem_and_tokenize(field_contents) {
   return field_contents.split(' '); // TODO: stemming and smart tokenising (should look at the config vars above)
 }
 
