@@ -56,6 +56,40 @@ function mft_search(coll_name, query_obj) {
   }  
 }
 
+function mft_score_record_against_query(coll_name, record, query_terms) {
+  var record_terms = record[EXTRACTED_TERMS_FIELD];
+  var query_terms_set = {};
+  var score = 0.0;
+  for (var i = 0; i < query_terms.length; i++) {
+    query_terms_set[query_terms[i]] = true; // to avoid needing to iterate
+  }
+  var idf_cache = {};
+  for (var i = 0; i < record_terms.length; i++) {
+    var term = record_terms[i]
+    if (term in query_terms_set) {
+      var term_idf = idf_cache[term];
+      if (term_idf === undefined) {
+        term_idf = mft_get_term_idf(coll_name, term);
+        idf_cache[term] = term_idf;
+      }
+    }
+    score += term_idf;
+  }
+  // probably should normalise here (both query and document vectors)? 
+}
+
+function mft_get_term_idf(coll_name, term) {
+  // this currently doesn't have any caching smarts.
+  // we could cache the IDF for each doc in the collection, but that would make updating more complicated
+  // for the moment I'll gamble on mongodb being quick enough to make it not a problem
+  // 
+  var term_count = db[coll_name].find(mft_filter_arg(coll_name, [term], true)).count()
+  if (term_count == 0) { return 0.0 };
+  var num_docs = db[coll_name].find().count(); // TODO: memoize, or find a better method for getting this
+  return log(num_docs) - log(term_count)
+  //TODO: return log(num_docs)
+}
+
 function mft_filter_arg(coll_name, query_terms, require_all) {
   if (require_all === undefined) {
     require_all = true;
