@@ -9,9 +9,9 @@
 // Release 1 be 'andargor', Jul 2004
 // Release 2 (substantially revised) by Christopher McKenzie, Aug 2009
 
-mft_stemming = {}
+mft_stemming = {};
 
-mft_stemming.porterStemmer = (function(){
+mft_stemming.porterStemmer = function(){
   var step2list = {
       "ational" : "ate",
       "tional" : "tion",
@@ -184,9 +184,9 @@ mft_stemming.porterStemmer = (function(){
     }
 
     return w;
-  }
-})();
+  };
+}();
 
 _all = {
-  mft_stemming: mft_stemming;
-}
+  mft_stemming: mft_stemming
+};
