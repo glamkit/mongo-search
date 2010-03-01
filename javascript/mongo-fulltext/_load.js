@@ -58,5 +58,3 @@ for (var filename in libs) {
     s.insert( { _id : funcname , value : module[funcname]} );
   }
 }
-
-assert.eq( "spang!!!!" , db.eval( "return spang();"  ) , "spang def" );
