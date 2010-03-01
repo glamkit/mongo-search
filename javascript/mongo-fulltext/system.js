@@ -78,7 +78,7 @@ mft.score_record_against_query = function(coll_name, record, query_terms) {
     }
     score += term_idf;
   }
-  return score/record_terms.length;
+  return score/Math.sqrt(record_terms.length);
   // for cosine similarity, we should be normalizing the document vector against the sqrt of the sums of the sqares of all term
   // but that would require knowing the IDF scores of all terms, rather than just the ones in the query which is potentially
   // expensive unless we precompute (either the IDFs or normalized vector for each doc). 
@@ -94,7 +94,7 @@ mft.get_term_idf= function(coll_name, term) {
   var term_count = db[coll_name].find(mft.filter_arg(coll_name, [term], true)).count();
   if (term_count === 0) { return 0.0; }
   var num_docs = db[coll_name].find().count(); // TODO: memoize, or find a better method for getting this
-  return log(num_docs) - log(term_count);
+  return Math.log(num_docs) - Math.log(term_count);
 };
 
 mft.filter_arg= function(coll_name, query_terms, require_all) {
