@@ -180,7 +180,7 @@ mft.get_stem_function = function() {
     return mft._STEM_FUNCTION;
   } else {
     if (mft.STEMMING == 'porter') { // no others available
-      return (mft._STEM_FUNCTION = porterStemmer);
+      return (mft._STEM_FUNCTION = mft_stemming.porterStemmer);
     }
   }
 };
