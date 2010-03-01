@@ -4,18 +4,17 @@
 // to run: 
 //   ./mongo jstests/_runner.js
 
+_load('jstests/_utility.js');
+
+var FILE_MATCH_RE = /\/[^_].*\.js$/;
 var files = listFiles("jstests");
 
 files.forEach(
     function(x) {
-        
-        if ( /_runner/.test(x.name) ||
-             /_lodeRunner/.test(x.name) ||
-             ! /\.js$/.test(x.name ) ){ 
+        if (!FILE_MATCH_RE.test(x.name)){ 
             print(" >>>>>>>>>>>>>>> skipping " + x.name);
             return;
         }
-        
         
         print(" *******************************************");
         print("         Test : " + x.name + " ...");
@@ -23,5 +22,4 @@ files.forEach(
         
     }
 );
-
 

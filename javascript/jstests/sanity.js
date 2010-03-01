@@ -1,4 +1,6 @@
 // clone of basic1.js from mongo test suite
+// fails if something is very very broken
+
 t = db.getCollection( "basic1" );
 t.drop();
 
@@ -19,5 +21,3 @@ assert(t.validate().valid);
 // not a very good test of currentOp, but tests that it at least 
 // is sort of there:
 assert( db.currentOp().inprog != null );
-
-assert.eq(1,2);
