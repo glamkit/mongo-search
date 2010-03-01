@@ -11,7 +11,7 @@
 
 mft_stemming = {};
 
-mft_stemming.porterStemmer = (function(){
+mft_stemming.porterStemmer = function(){
   var step2list = {
       "ational" : "ate",
       "tional" : "tion",
@@ -184,9 +184,9 @@ mft_stemming.porterStemmer = (function(){
     }
 
     return w;
-  }
-})();
+  };
+}();
 
 _all = {
   mft_stemming: mft_stemming
-}
+};
