@@ -1,5 +1,6 @@
 
 mft = {
+  // CONFIG ITEMS:
   INDEXED_FIELDS_AND_WEIGHTS : {
     'items':  {
         'title': 5,
@@ -8,12 +9,16 @@ mft = {
   },
 
   STEMMING: 'porter', // doesn't do anything yet
-  TOKENIZING: 'standard',// doesn't do anything yet
+  TOKENIZING: 'basic',// doesn't do anything yet
 
   EXTRACTED_TERMS_FIELD: '_extracted_terms',
   SEARCH_ALL_PSEUDO_FIELD: '$search', // magic "field name" that specifies we want a fulltext search 
             // (abusing the '$' notation somewhat, which is often for search operators)
-  SEARCH_ANY_PSEUDO_FIELD: '$searchany' // magic "field name" that specifies we want a fulltext search matching any, not all
+  SEARCH_ANY_PSEUDO_FIELD: '$searchany', // magic "field name" that specifies we want a fulltext search matching any, not all
+  
+  // WORKHORSE VARS:
+  _STEM_FUNCTION: null,
+  _TOKENIZE_FUNCTION: null
 };
 
 mft.search = function(coll_name, query_obj) {  
@@ -41,8 +46,7 @@ mft.search = function(coll_name, query_obj) {
   query_obj[mft.EXTRACTED_TERMS_FIELD] = mft.filter_arg(query_terms, require_all);
   var filtered = db[coll_name].find(query_obj);
   var scores_and_ids = Array();
-  for (var i in filtered) {
-    var record = filtered[i];
+  for (var record in filtered) {
     var score = mft.score_record_against_query(record, query_terms);
     scores_and_ids.push([score, record._id]);
   }
@@ -67,8 +71,8 @@ mft.score_record_against_query = function(coll_name, record, query_terms) {
     query_terms_set[query_terms[i]] = true; // to avoid needing to iterate
   }
   var idf_cache = {};
-  for (var i = 0; i < record_terms.length; i++) {
-    var term = record_terms[i];
+  for (var j = 0; j < record_terms.length; j++) {
+    var term = record_terms[j];
     if (term in query_terms_set) {
       var term_idf = idf_cache[term];
       if (term_idf === undefined) {
@@ -86,7 +90,7 @@ mft.score_record_against_query = function(coll_name, record, query_terms) {
   // This should provide a nice approximation that will give decent results at least relative to the query, which is all we care about.
 };
 
-mft.get_term_idf= function(coll_name, term) {
+mft.get_term_idf = function(coll_name, term) {
   // this currently doesn't have any caching smarts.
   // we could cache the IDF for each doc in the collection, but that would make updating more complicated
   // for the moment I'll gamble on mongodb being quick enough to make it not a problem
@@ -97,7 +101,7 @@ mft.get_term_idf= function(coll_name, term) {
   return Math.log(num_docs) - Math.log(term_count);
 };
 
-mft.filter_arg= function(coll_name, query_terms, require_all) {
+mft.filter_arg = function(coll_name, query_terms, require_all) {
   if (require_all === undefined) {
     require_all = true;
   }
@@ -106,7 +110,7 @@ mft.filter_arg= function(coll_name, query_terms, require_all) {
   return filter_obj;
 };
 
-mft.process_query_string= function(query_string) {
+mft.process_query_string = function(query_string) {
   return mft.stem_and_tokenize(query_string); // maybe tokenizing should be different for queries?
 };
 
@@ -115,7 +119,7 @@ mft.index_all= function(coll_name) {
   cur.forEach(function(x) { mft.index_single_record(coll_name, x); });
 };
 
-mft.index_single_record= function(coll_name, record) {
+mft.index_single_record = function(coll_name, record) {
   var all_extracted_terms = Array();
   for (var field in mft.INDEXED_FIELDS_AND_WEIGHTS[coll_name]) {
     all_extracted_terms = all_extracted_terms.concat(mft.extract_field_tokens(coll_name, record, field));
@@ -124,12 +128,12 @@ mft.index_single_record= function(coll_name, record) {
   db[coll_name].save(record);
 };
 
-mft.index_single_record_from_id= function(coll_name, record_id) {
+mft.index_single_record_from_id = function(coll_name, record_id) {
   var rec = db[coll_name].findOne({'_id': record_id});
   mft.index_single_record(coll_name, rec);
 };
 
-mft.extract_field_tokens= function(coll_name, record, field) {
+mft.extract_field_tokens = function(coll_name, record, field) {
   // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
   var contents = record[field];
   if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
@@ -148,10 +152,48 @@ mft.extract_field_tokens= function(coll_name, record, field) {
   }
 };
 
-mft.stem_and_tokenize= function(field_contents) {
+mft.stem_and_tokenize = function(field_contents) {
   return field_contents.split(' '); // TODO: stemming and smart tokenising (should look at the config vars above)
 };
 
+mft.tokenize_basic = function(field_contents) {
+  var token_re = /\b(\w[\w'-])\b/g;
+  return token_re.match(field_contents);
+};
+
+mft.stem = function(field_tokens) {
+  var stem_fn = mft.get_stem_function();
+  var stemmed = Array();
+  for (var i = 0; i < field_tokens.length; i++) {
+    stemmed.push(stem_fn(field_tokens[i]));
+  }
+  return stemmed;
+};
+
+mft.tokenize = function(field_contents) {
+  var tokenize_fn = mft.get_tokenize_function();
+  return tokenize_fn(field_contents);
+};
+
+mft.get_stem_function = function() {
+  if (mft._STEM_FUNCTION) {
+    return mft._STEM_FUNCTION;
+  } else {
+    if (mft.STEMMING == 'porter') { // no others available
+      return (mft._STEM_FUNCTION = porterStemmer);
+    }
+  }
+};
+
+mft.get_tokenize_function = function() {
+  if (mft._TOKENIZE_FUNCTION) {
+    return mft._TOKENIZE_FUNCTION;
+  } else {
+    if (mft.TOKENIZING == 'basic') { // no others available
+      return (mft._TOKENIZE_FUNCTION = mft.tokenize_basic);
+    }
+  }  
+};
 
 _all = {
   mft: mft
