@@ -1,3 +1,4 @@
+"use strict";
 
 mft = {
   // CONFIG ITEMS:
@@ -21,7 +22,7 @@ mft = {
   _TOKENIZE_FUNCTION: null
 };
 
-mft.search = function(coll_name, query_obj) {  
+mft.search = function(coll_name, query_obj) {
   // check for $search member on query_obj
   // if it doesn't exist, pass through to regular .find
   // if it does, parse the ft query string, and add the appropriate filter
@@ -30,7 +31,6 @@ mft.search = function(coll_name, query_obj) {
   // a private collection (hashed by the whole query obj, which we can check next time around)
   // then iterate through the IDs and scores and return the corrpesponding records with the IDs
   // attached to them, in a way that emulates a cursor object.
-  // what hsould this do?
   var search_query_string;
   var require_all;
   if (query_obj[mft.SEARCH_ALL_PSEUDO_FIELD]) {
@@ -42,16 +42,20 @@ mft.search = function(coll_name, query_obj) {
   } else {
     return db[coll_name].find(query_obj); // no need to call search, you chump
   }
+  print("DEBUG: query string is " + search_query_string);
   var query_terms = mft.process_query_string(search_query_string);
-  query_obj[mft.EXTRACTED_TERMS_FIELD] = mft.filter_arg(query_terms, require_all);
+  print("DEBUG: query terms is " + (query_terms.join(',') + " with length " + query_terms.length));
+  query_obj[mft.EXTRACTED_TERMS_FIELD] = mft.filter_arg(coll_name, query_terms, require_all);
+  print("DEBUG: query_obj=" + tojson(query_obj));
   var filtered = db[coll_name].find(query_obj);
   var scores_and_ids = Array();
-  for (var record in filtered) {
-    var score = mft.score_record_against_query(record, query_terms);
-    scores_and_ids.push([score, record._id]);
-  }
+  print("DEBUG: num recs found: " + filtered.count());
+  filtered.forEach(
+    function(record) {
+      var score = mft.score_record_against_query(coll_name, record, query_terms);
+      scores_and_ids.push([score, record._id]);
+    });
   scores_and_ids.sort();
-
   var scored_records = Array();
   // this is the dodgy way - need to do a cursor in the future
   for (var i = 0; i < scores_and_ids.length; i++) {
@@ -65,11 +69,13 @@ mft.search = function(coll_name, query_obj) {
 
 mft.score_record_against_query = function(coll_name, record, query_terms) {
   var record_terms = record[mft.EXTRACTED_TERMS_FIELD];
+  print("DEBUG: record=" + record);
   var query_terms_set = {};
   var score = 0.0;
   for (var i = 0; i < query_terms.length; i++) {
     query_terms_set[query_terms[i]] = true; // to avoid needing to iterate
   }
+  print("DEBUG: query_terms_set=" + tojson(query_terms_set));
   var idf_cache = {};
   for (var j = 0; j < record_terms.length; j++) {
     var term = record_terms[j];
@@ -105,7 +111,7 @@ mft.filter_arg = function(coll_name, query_terms, require_all) {
   if (require_all === undefined) {
     require_all = true;
   }
-  var ret_obj = {};
+  var filter_obj = {};
   filter_obj[require_all ? '$all' : '$in'] = query_terms;
   return filter_obj;
 };
@@ -114,7 +120,8 @@ mft.process_query_string = function(query_string) {
   return mft.stem_and_tokenize(query_string); // maybe tokenizing should be different for queries?
 };
 
-mft.index_all= function(coll_name) {
+mft.index_all = function(coll_name) {
+  print("DEBUG: indexing all records");
   var cur = db.coll_name.find();
   cur.forEach(function(x) { mft.index_single_record(coll_name, x); });
 };
@@ -153,12 +160,13 @@ mft.extract_field_tokens = function(coll_name, record, field) {
 };
 
 mft.stem_and_tokenize = function(field_contents) {
-  return field_contents.split(' '); // TODO: stemming and smart tokenising (should look at the config vars above)
+  return field_contents.split(' ');
+  return mft.tokenize(field_contents); //TODO: actually stem as promised
 };
 
 mft.tokenize_basic = function(field_contents) {
-  var token_re = /\b(\w[\w'-])\b/g;
-  return token_re.match(field_contents);
+  var token_re = /\b(\w[\w'-]*\w|\w)\b/g;
+  return field_contents.match(token_re);
 };
 
 mft.stem = function(field_tokens) {

@@ -8,5 +8,5 @@ var fixture = [
 ]
 
 load_records_from_list('search_works', fixture);
-
-result = db.eval("return mft.search('search_works', {$search: 'fish'})");
+db.eval("mft.index_all('search_works')");
+result = db.eval("return mft.search('search_works', {$search: 'fish dogs'})");
