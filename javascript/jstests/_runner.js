@@ -4,7 +4,7 @@
 // to run: 
 //   ./mongo jstests/_runner.js
 
-_load('jstests/_utility.js');
+load('jstests/_utility.js');
 
 var FILE_MATCH_RE = /\/[^_].*\.js$/;
 var files = listFiles("jstests");
