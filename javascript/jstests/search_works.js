@@ -7,6 +7,6 @@ var fixture = [
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers" }
 ]
 
-load_records_from_list('search_works', fixture);
+load_records_from_list(fixture, 'search_works');
 db.eval("mft.index_all('search_works')");
 result = db.eval("return mft.search('search_works', {$search: 'fish dogs'})");
