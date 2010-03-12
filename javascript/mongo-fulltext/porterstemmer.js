@@ -8,10 +8,11 @@
 
 // Release 1 be 'andargor', Jul 2004
 // Release 2 (substantially revised) by Christopher McKenzie, Aug 2009
+"use strict";
 
 mft_stemming = {};
 
-mft_stemming.porterStemmer = function(){
+mft_stemming.porterStemmerCreator = function(){
   var step2list = {
       "ational" : "ate",
       "tional" : "tion",
@@ -56,6 +57,8 @@ mft_stemming.porterStemmer = function(){
     mgr1 = "^(" + C + ")?" + V + C + V + C,       // [C]VCVC... is m>1
     s_v = "^(" + C + ")?" + v;                   // vowel in stem
 
+  print("DEBUG: instantiating new porter stemmer function");
+  // (hopefully we're not doing this too often)
   return function (w) {
     var   stem,
       suffix,
@@ -64,7 +67,7 @@ mft_stemming.porterStemmer = function(){
       re2,
       re3,
       re4,
-      origword = w;
+      fp;
 
     if (w.length < 3) { return w; }
 
@@ -84,14 +87,14 @@ mft_stemming.porterStemmer = function(){
     re = /^(.+?)eed$/;
     re2 = /^(.+?)(ed|ing)$/;
     if (re.test(w)) {
-      var fp = re.exec(w);
+      fp = re.exec(w);
       re = new RegExp(mgr0);
       if (re.test(fp[1])) {
         re = /.$/;
         w = w.replace(re,"");
       }
     } else if (re2.test(w)) {
-      var fp = re2.exec(w);
+      fp = re2.exec(w);
       stem = fp[1];
       re2 = new RegExp(s_v);
       if (re2.test(stem)) {
@@ -108,7 +111,7 @@ mft_stemming.porterStemmer = function(){
     // Step 1c
     re = /^(.+?)y$/;
     if (re.test(w)) {
-      var fp = re.exec(w);
+      fp = re.exec(w);
       stem = fp[1];
       re = new RegExp(s_v);
       if (re.test(stem)) { w = stem + "i"; }
@@ -117,7 +120,7 @@ mft_stemming.porterStemmer = function(){
     // Step 2
     re = /^(.+?)(ational|tional|enci|anci|izer|bli|alli|entli|eli|ousli|ization|ation|ator|alism|iveness|fulness|ousness|aliti|iviti|biliti|logi)$/;
     if (re.test(w)) {
-      var fp = re.exec(w);
+      fp = re.exec(w);
       stem = fp[1];
       suffix = fp[2];
       re = new RegExp(mgr0);
@@ -129,7 +132,7 @@ mft_stemming.porterStemmer = function(){
     // Step 3
     re = /^(.+?)(icate|ative|alize|iciti|ical|ful|ness)$/;
     if (re.test(w)) {
-      var fp = re.exec(w);
+      fp = re.exec(w);
       stem = fp[1];
       suffix = fp[2];
       re = new RegExp(mgr0);
@@ -142,14 +145,14 @@ mft_stemming.porterStemmer = function(){
     re = /^(.+?)(al|ance|ence|er|ic|able|ible|ant|ement|ment|ent|ou|ism|ate|iti|ous|ive|ize)$/;
     re2 = /^(.+?)(s|t)(ion)$/;
     if (re.test(w)) {
-      var fp = re.exec(w);
+      fp = re.exec(w);
       stem = fp[1];
       re = new RegExp(mgr1);
       if (re.test(stem)) {
         w = stem;
       }
     } else if (re2.test(w)) {
-      var fp = re2.exec(w);
+      fp = re2.exec(w);
       stem = fp[1] + fp[2];
       re2 = new RegExp(mgr1);
       if (re2.test(stem)) {
@@ -160,7 +163,7 @@ mft_stemming.porterStemmer = function(){
     // Step 5
     re = /^(.+?)e$/;
     if (re.test(w)) {
-      var fp = re.exec(w);
+      fp = re.exec(w);
       stem = fp[1];
       re = new RegExp(mgr1);
       re2 = new RegExp(meq1);
@@ -185,7 +188,12 @@ mft_stemming.porterStemmer = function(){
 
     return w;
   };
-}();
+  
+};
+
+// mft_stemming.porterStemmer = mft_stemming.porterStemmerCreator();
+
+// any method of calling the creator function here results in the closure not working properly...
 
 _all = {
   mft_stemming: mft_stemming
