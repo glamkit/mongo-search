@@ -29,8 +29,8 @@ mft.indexed_fields_and_weights = function(coll_name) {
       // }
   
   collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
-  return collection_conf['fields'];
-}
+  return collection_conf.fields;
+};
 
 mft.search = function(coll_name, query_obj) {
   // check for $search member on query_obj
@@ -100,8 +100,8 @@ mft.score_record_against_query = function(coll_name, record, query_terms) {
         term_idf = mft.get_term_idf(coll_name, term);
         idf_cache[term] = term_idf;
       }
+      score += term_idf;
     }
-    score += term_idf;
   }
   return score/Math.sqrt(record_terms.length);
   // for cosine similarity, we should be normalizing the document vector against the sqrt of the sums of the sqares of all term
@@ -116,7 +116,9 @@ mft.get_term_idf = function(coll_name, term) {
   // we could cache the IDF for each doc in the collection, but that would make updating more complicated
   // for the moment I'll gamble on mongodb being quick enough to make it not a problem
   // 
-  var term_count = db[coll_name].find(mft.filter_arg(coll_name, [term], true)).count();
+  var term_filter_obj = {};
+  term_filter_obj[mft.EXTRACTED_TERMS_FIELD] = mft.filter_arg(coll_name, [term], true);
+  var term_count = db[coll_name].find(term_filter_obj).count();
   if (term_count === 0) { return 0.0; }
   var num_docs = db[coll_name].find().count(); // TODO: memoize, or find a better method for getting this
   return Math.log(num_docs) - Math.log(term_count);
@@ -144,8 +146,9 @@ mft.index_all = function(coll_name) {
 };
 
 mft.index_single_record = function(coll_name, record, indexed_fields) {
-  if (typeof indexed_fields == undefined) // we can pass this in to save CPU in bulk indexing, but might not
+  if (typeof indexed_fields === undefined) {// we can pass this in to save CPU in bulk indexing, but might not
     indexed_fields = mft.indexed_fields_and_weights(coll_name);
+  }
   var all_extracted_terms = Array();
   for (var field in indexed_fields) {
     all_extracted_terms = all_extracted_terms.concat(mft.extract_field_tokens(coll_name, record, field, indexed_fields[field]));
