@@ -121,8 +121,8 @@ mft.process_query_string = function(query_string) {
 };
 
 mft.index_all = function(coll_name) {
-  print("DEBUG: indexing all records");
-  var cur = db.coll_name.find();
+  print("DEBUG: indexing all records in " + coll_name);
+  var cur = db[coll_name].find();
   cur.forEach(function(x) { mft.index_single_record(coll_name, x); });
 };
 
@@ -131,6 +131,7 @@ mft.index_single_record = function(coll_name, record) {
   for (var field in mft.INDEXED_FIELDS_AND_WEIGHTS[coll_name]) {
     all_extracted_terms = all_extracted_terms.concat(mft.extract_field_tokens(coll_name, record, field));
   }
+  print("DEBUG: extracted terms: " + all_extracted_terms);
   record[mft.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
   db[coll_name].save(record);
 };
@@ -143,6 +144,7 @@ mft.index_single_record_from_id = function(coll_name, record_id) {
 mft.extract_field_tokens = function(coll_name, record, field) {
   // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
   var contents = record[field];
+  print("DEBUG: contents for field " + field + ": " + contents);
   if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
     return;
   }
