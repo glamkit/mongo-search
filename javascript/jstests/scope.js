@@ -15,8 +15,8 @@ j.save({ _id : "scope_function_returning_closure" ,
 
 assert.eq(2 , j.find({_id: /^scope_/}).count() , "setup functions" );
 assert.eq(db.eval("return scope_x;"), 4, "scope_x" );
-// the following test will raise an exception; stored functions do not retain their closures in MongoDB
+// the following test would raise an exception; stored functions do not retain their closures in MongoDB
 // assert.eq(db.eval("return scope_function_returning_closure();"), 73, "scope_function_returning_closure" );
-// However, this works find, since the variable will be looked up in glboal scope
+// However, this works fine, since the variable will be looked up in global scope
 j.save({_id: "scope_closure_var", value: 74});
 assert.eq(db.eval("return scope_function_returning_closure();"), 74, "closure is global" );
