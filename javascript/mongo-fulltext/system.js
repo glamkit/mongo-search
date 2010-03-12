@@ -183,7 +183,7 @@ mft.extract_field_tokens = function(coll_name, record, field, upweighting) {
 };
 
 mft.stem_and_tokenize = function(field_contents) {
-  return mft.tokenize(field_contents.toLowerCase()); //TODO: actually stem as promised
+  return mft.stem(mft.tokenize(field_contents.toLowerCase())); //TODO: actually stem as promised
 };
 
 mft.tokenize_basic = function(field_contents) {
@@ -210,7 +210,7 @@ mft.get_stem_function = function() {
     return mft._STEM_FUNCTION;
   } else {
     if (mft.STEMMING == 'porter') { // no others available
-      return (mft._STEM_FUNCTION = mft_stemming.porterStemmer);
+      return (mft._STEM_FUNCTION = mft_stemming.porterStemmerCreator()); // porterStemmer() returns a porter stemming fn when called
     }
   }
 };
