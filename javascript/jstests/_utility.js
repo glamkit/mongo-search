@@ -43,3 +43,7 @@ mft_util.setup_tests = function(coll_name) {
     mft_util.load_records_from_file('jstests/_fixture-basic.js');
     mft_util.load_server_functions();
 };
+
+_all = {
+  mft_util: mft_util
+};
