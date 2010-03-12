@@ -1,4 +1,4 @@
-load('jstests/_utility.js');
+// load('jstests/_utility.js');
 var s = db.search_works;
 s.drop();
 var fixture = [
@@ -7,7 +7,7 @@ var fixture = [
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers" }
 ]
 
-load_records_from_list(fixture, 'search_works');
+mft_util.load_records_from_list(fixture, 'search_works');
 var conf = db.fulltext_config
 conf.insert({'collection_name' : 'search_works', 'fields': {'title': 5, 'content': 1}});
 // TODO: add index on collection name (should we have an _id attribute too?)
