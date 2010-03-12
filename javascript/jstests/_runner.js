@@ -4,7 +4,7 @@
 // to run: 
 //   ./mongo jstests/_runner.js
 load('jstests/_utility.js');
-setup_tests();
+mft_util.setup_tests();
 
 var FILE_MATCH_RE = /\/[^_].*\.js$/ ;
 var files = listFiles("jstests");
