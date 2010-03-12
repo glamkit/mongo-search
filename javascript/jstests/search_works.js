@@ -14,3 +14,5 @@ conf.insert({'collection_name' : 'search_works', 'fields': {'title': 5, 'content
 db.eval("mft.index_all('search_works')");
 result = db.eval("return mft.search('search_works', {$search: 'fish'})");
 print("Search result" + tojson(result));
+result = db.eval("return mft.search('search_works', {$search: 'Dory'})");
+print("Search result" + tojson(result));

@@ -57,7 +57,7 @@ mft.search = function(coll_name, query_obj) {
   print("DEBUG: query terms is " + (query_terms.join(',') + " with length " + query_terms.length));
   query_obj[mft.EXTRACTED_TERMS_FIELD] = mft.filter_arg(coll_name, query_terms, require_all);
   if (require_all) {
-    delete(query_obj[mft.SEARCH_ALL_PSEUDO_FIELD]);
+    delete(query_obj[mft.SEARCH_ALL_PSEUDO_FIELD]); // need to get rid f pseudo args, as they stop .find() from returning anything
   } else {
     delete(query_obj[mft.SEARCH_ANY_PSEUDO_FIELD]);
   }
@@ -173,15 +173,14 @@ mft.extract_field_tokens = function(coll_name, record, field, upweighting) {
   } else {
     var upweighted_contents = processed_contents;
     for (var i = 1; i < upweighting; i++) {
-      upweighted_contents.concat(processed_contents);
+      upweighted_contents = upweighted_contents.concat(processed_contents);
     }
     return upweighted_contents; // this upweighting shouldn't damage our scores as long as we TF IDF, since IDF won't be affect by linear multipliers
   }
 };
 
 mft.stem_and_tokenize = function(field_contents) {
-  return field_contents.split(' ');
-  return mft.tokenize(field_contents); //TODO: actually stem as promised
+  return mft.tokenize(field_contents.toLowerCase()); //TODO: actually stem as promised
 };
 
 mft.tokenize_basic = function(field_contents) {
