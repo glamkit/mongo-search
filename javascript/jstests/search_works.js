@@ -8,5 +8,11 @@ var fixture = [
 ]
 
 mft_util.load_records_from_list(fixture, 'search_works');
+var conf = db.fulltext_config
+conf.insert({'collection_name' : 'search_works', 'fields': {'title': 5, 'content': 1}});
+// TODO: add index on collection name (should we have an _id attribute too?)
 db.eval("mft.index_all('search_works')");
-result = db.eval("return mft.search('search_works', {$search: 'fish dogs'})");
+result = db.eval("return mft.search('search_works', {$search: 'fish'})");
+print("Search result" + tojson(result));
+result = db.eval("return mft.search('search_works', {$search: 'Dory'})");
+print("Search result" + tojson(result));

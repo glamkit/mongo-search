@@ -2,12 +2,6 @@
 
 mft = {
   // CONFIG ITEMS:
-  INDEXED_FIELDS_AND_WEIGHTS : {
-    'items':  {
-        'title': 5,
-        'content': 1
-    }
-  },
 
   STEMMING: 'porter', // doesn't do anything yet
   TOKENIZING: 'basic',// doesn't do anything yet
@@ -20,6 +14,22 @@ mft = {
   // WORKHORSE VARS:
   _STEM_FUNCTION: null,
   _TOKENIZE_FUNCTION: null
+};
+
+mft.indexed_fields_and_weights = function(coll_name) {
+  // we expect a special collection named '_fulltext_config', with items having elems 'collection_name', and 'fields',
+  // with 'fields' having keys being the field name, and the values being the weight.
+  //eg:
+      // {
+      //   collection_name: 'test', 
+      //   fields: {
+      //     title: 5,
+      //     content: 1
+      //   }
+      // }
+  
+  collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
+  return collection_conf.fields;
 };
 
 mft.search = function(coll_name, query_obj) {
@@ -46,6 +56,11 @@ mft.search = function(coll_name, query_obj) {
   var query_terms = mft.process_query_string(search_query_string);
   print("DEBUG: query terms is " + (query_terms.join(',') + " with length " + query_terms.length));
   query_obj[mft.EXTRACTED_TERMS_FIELD] = mft.filter_arg(coll_name, query_terms, require_all);
+  if (require_all) {
+    delete(query_obj[mft.SEARCH_ALL_PSEUDO_FIELD]); // need to get rid f pseudo args, as they stop .find() from returning anything
+  } else {
+    delete(query_obj[mft.SEARCH_ANY_PSEUDO_FIELD]);
+  }
   print("DEBUG: query_obj=" + tojson(query_obj));
   var filtered = db[coll_name].find(query_obj);
   var scores_and_ids = Array();
@@ -60,7 +75,7 @@ mft.search = function(coll_name, query_obj) {
   // this is the dodgy way - need to do a cursor in the future
   for (var i = 0; i < scores_and_ids.length; i++) {
     var score_and_id = scores_and_ids[i];
-    record = db[coll_name].find_one({_id: score_and_id[1]});
+    record = db[coll_name].findOne({_id: score_and_id[1]});
     record.score = score_and_id[0];
     scored_records.push(record);
   }
@@ -85,8 +100,8 @@ mft.score_record_against_query = function(coll_name, record, query_terms) {
         term_idf = mft.get_term_idf(coll_name, term);
         idf_cache[term] = term_idf;
       }
+      score += term_idf;
     }
-    score += term_idf;
   }
   return score/Math.sqrt(record_terms.length);
   // for cosine similarity, we should be normalizing the document vector against the sqrt of the sums of the sqares of all term
@@ -101,7 +116,9 @@ mft.get_term_idf = function(coll_name, term) {
   // we could cache the IDF for each doc in the collection, but that would make updating more complicated
   // for the moment I'll gamble on mongodb being quick enough to make it not a problem
   // 
-  var term_count = db[coll_name].find(mft.filter_arg(coll_name, [term], true)).count();
+  var term_filter_obj = {};
+  term_filter_obj[mft.EXTRACTED_TERMS_FIELD] = mft.filter_arg(coll_name, [term], true);
+  var term_count = db[coll_name].find(term_filter_obj).count();
   if (term_count === 0) { return 0.0; }
   var num_docs = db[coll_name].find().count(); // TODO: memoize, or find a better method for getting this
   return Math.log(num_docs) - Math.log(term_count);
@@ -121,17 +138,23 @@ mft.process_query_string = function(query_string) {
 };
 
 mft.index_all = function(coll_name) {
-  print("DEBUG: indexing all records");
-  var cur = db.coll_name.find();
-  cur.forEach(function(x) { mft.index_single_record(coll_name, x); });
+  print("DEBUG: indexing all records in " + coll_name);
+  var cur = db[coll_name].find();
+  indexed_fields = mft.indexed_fields_and_weights(coll_name);
+  print("DEBUG: indexed fields and weights: " + tojson(indexed_fields));
+  cur.forEach(function(x) { mft.index_single_record(coll_name, x, indexed_fields); });
 };
 
-mft.index_single_record = function(coll_name, record) {
+mft.index_single_record = function(coll_name, record, indexed_fields) {
+  if (typeof indexed_fields === undefined) {// we can pass this in to save CPU in bulk indexing, but might not
+    indexed_fields = mft.indexed_fields_and_weights(coll_name);
+  }
   var all_extracted_terms = Array();
-  for (var field in mft.INDEXED_FIELDS_AND_WEIGHTS[coll_name]) {
-    all_extracted_terms = all_extracted_terms.concat(mft.extract_field_tokens(coll_name, record, field));
+  for (var field in indexed_fields) {
+    all_extracted_terms = all_extracted_terms.concat(mft.extract_field_tokens(coll_name, record, field, indexed_fields[field]));
   }
   record[mft.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
+  print("DEBUG: record is now: " + tojson(record));
   db[coll_name].save(record);
 };
 
@@ -140,28 +163,27 @@ mft.index_single_record_from_id = function(coll_name, record_id) {
   mft.index_single_record(coll_name, rec);
 };
 
-mft.extract_field_tokens = function(coll_name, record, field) {
+mft.extract_field_tokens = function(coll_name, record, field, upweighting) {
   // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
   var contents = record[field];
+  print("DEBUG: contents for field " + field + ": " + contents);
   if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
     return;
   }
   var processed_contents = mft.stem_and_tokenize(contents);
-  var upweighting = mft.INDEXED_FIELDS_AND_WEIGHTS[coll_name][field];
   if (upweighting == 1) { // special -casing for the common case - may be slightly quicker avoiding the array copy
     return processed_contents;
   } else {
     var upweighted_contents = processed_contents;
     for (var i = 1; i < upweighting; i++) {
-      upweighted_contents.concat(processed_contents);
+      upweighted_contents = upweighted_contents.concat(processed_contents);
     }
     return upweighted_contents; // this upweighting shouldn't damage our scores as long as we TF IDF, since IDF won't be affect by linear multipliers
   }
 };
 
 mft.stem_and_tokenize = function(field_contents) {
-  return field_contents.split(' ');
-  return mft.tokenize(field_contents); //TODO: actually stem as promised
+  return mft.tokenize(field_contents.toLowerCase()); //TODO: actually stem as promised
 };
 
 mft.tokenize_basic = function(field_contents) {
