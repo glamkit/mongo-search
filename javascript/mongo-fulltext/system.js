@@ -70,7 +70,7 @@ mft.search = function(coll_name, query_obj) {
       var score = mft.scoreRecordAgainstQuery(coll_name, record, query_terms);
       scores_and_ids.push([score, record._id]);
     });
-  scores_and_ids.sort();
+  scores_and_ids.sort(mft.sortNumericDescending); // need to provide a custom search function anyway, as JS does sorts alphabetically
   var scored_records = Array();
   // this is the dodgy way - need to do a cursor in the future
   for (var i = 0; i < scores_and_ids.length; i++) {
@@ -81,6 +81,10 @@ mft.search = function(coll_name, query_obj) {
   }
   return scored_records;
 };
+
+mft.sortNumericDescending = function(a, b) {
+  return b - a;
+}
 
 mft.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
   var record_terms = record[mft.EXTRACTED_TERMS_FIELD];
