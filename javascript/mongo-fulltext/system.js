@@ -236,46 +236,44 @@ mft.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
   // memory, and not taking lots of time to sort results we may not need - hence the heap
   this.coll_name = coll_name;
-  var scores_and_ids_heap = new mft_heap.BinaryHeap(function(x) { return x[0] });
-  print("DEBUG: heap is: " + tojson(scores_and_ids_heap.prototype));
+  var scores_and_ids_heap = new mft_heap.BinaryHeap(function(x) { return -x[0] });
   // print("DEBUG: score functino running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
   scores_and_ids.forEach( function(x) {
-    print("DEBUG: pushing rec d " + x[1] + " onto heap");
     scores_and_ids_heap.push(x); // in-place would be better, but let's leave that unless we think it would be useful
   });
   this.scores_and_ids_heap = scores_and_ids_heap;
-};
 
-mft.SearchPseudoCursor.prototype = {
   
-  hasNext: function() {
+  this.hasNext = function() {
     return this.scores_and_ids_heap.size() > 0;
-  },
+  };
   
-  next: function() {
-    return fetchScoredRecord(this.scores_and_ids_heap.pop());
-  },
+  this.next = function() {
+    return this.fetchScoredRecord(this.scores_and_ids_heap.pop());
+  };
   
-  toArray: function() {
+  this.toArray = function() {
     output = [];
     while (this.hasNext()) {
       output.push(this.next());
     }
     return output;
-  },
+  };
   
-  fetchById: function(record_id) {
-    return db[this.coll_name].findOne({_id: score_and_id[1]});
-  },
+  this.fetchById = function(record_id) {
+    return db[this.coll_name].findOne({_id: record_id});
+  };
   
-  fetchScoredRecord: function(score_and_id) {
-    rec = fetchById(score_and_id[1]);
+  this.fetchScoredRecord = function(score_and_id) {
+    rec = this.fetchById(score_and_id[1]);
     rec.score = score_and_id[0];
     return rec;
-  }
+  };
+
 };
 
-  
+
+
 
 
 
