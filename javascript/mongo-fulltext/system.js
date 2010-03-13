@@ -70,21 +70,22 @@ mft.search = function(coll_name, query_obj) {
       var score = mft.scoreRecordAgainstQuery(coll_name, record, query_terms);
       scores_and_ids.push([score, record._id]);
     });
-  scores_and_ids.sort(mft.sortNumericFirstDescending); // need to provide a custom search function anyway, as JS does sorts alphabetically
-  var scored_records = Array();
-  // this is the dodgy way - need to do a cursor in the future
-  for (var i = 0; i < scores_and_ids.length; i++) {
-    var score_and_id = scores_and_ids[i];
-    record = db[coll_name].findOne({_id: score_and_id[1]});
-    record.score = score_and_id[0];
-    scored_records.push(record);
-  }
-  return scored_records;
+  return new mft.SearchPseudoCursor(coll_name, scores_and_ids);
+  // scores_and_ids.sort(mft.sortNumericFirstDescending); // need to provide a custom search function anyway, as JS does sorts alphabetically
+  // var scored_records = Array();
+  // // this is the dodgy way - need to do a cursor in the future
+  // for (var i = 0; i < scores_and_ids.length; i++) {
+  //   var score_and_id = scores_and_ids[i];
+  //   record = db[coll_name].findOne({_id: score_and_id[1]});
+  //   record.score = score_and_id[0];
+  //   scored_records.push(record);
+  // }
+  // return scored_records;
 };
 
 mft.sortNumericFirstDescending = function(a, b) {
   return b[0] - a[0];
-}
+};
 
 mft.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
   var record_terms = record[mft.EXTRACTED_TERMS_FIELD];
@@ -228,6 +229,55 @@ mft.getTokenizeFunction = function() {
     }
   }  
 };
+
+
+
+mft.SearchPseudoCursor = function(coll_name, scores_and_ids) {
+  // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
+  // memory, and not taking lots of time to sort results we may not need - hence the heap
+  this.coll_name = coll_name;
+  var scores_and_ids_heap = new mft_heap.BinaryHeap(function(x) { return x[0] });
+  print("DEBUG: heap is: " + tojson(scores_and_ids_heap.prototype));
+  // print("DEBUG: score functino running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
+  scores_and_ids.forEach( function(x) {
+    print("DEBUG: pushing rec d " + x[1] + " onto heap");
+    scores_and_ids_heap.push(x); // in-place would be better, but let's leave that unless we think it would be useful
+  });
+  this.scores_and_ids_heap = scores_and_ids_heap;
+};
+
+mft.SearchPseudoCursor.prototype = {
+  
+  hasNext: function() {
+    return this.scores_and_ids_heap.size() > 0;
+  },
+  
+  next: function() {
+    return fetchScoredRecord(this.scores_and_ids_heap.pop());
+  },
+  
+  toArray: function() {
+    output = [];
+    while (this.hasNext()) {
+      output.push(this.next());
+    }
+    return output;
+  },
+  
+  fetchById: function(record_id) {
+    return db[this.coll_name].findOne({_id: score_and_id[1]});
+  },
+  
+  fetchScoredRecord: function(score_and_id) {
+    rec = fetchById(score_and_id[1]);
+    rec.score = score_and_id[0];
+    return rec;
+  }
+};
+
+  
+
+
 
 _all = {
   mft: mft

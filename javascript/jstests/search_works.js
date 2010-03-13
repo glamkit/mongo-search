@@ -13,6 +13,6 @@ conf.insert({'collection_name' : 'search_works', 'fields': {'title': 5, 'content
 // TODO: add index on collection name (should we have an _id attribute too?)
 db.eval("mft.indexAll('search_works')");
 result = db.eval("return mft.search('search_works', {$search: 'fish'})");
-print("Search result" + tojson(result));
+print("Search result" + tojson(result.toArray()));
 result = db.eval("return mft.search('search_works', {$search: 'Dory'})");
-print("Search result" + tojson(result));
+print("Search result" + tojson(result.toArray()));
