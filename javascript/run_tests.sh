@@ -6,7 +6,7 @@ then
     echo "TEST_ARGS = $TEST_ARGS"
 else
     echo $@ args
-    TEST_ARGS=$@ 
+    TEST_ARGS="$@"
 fi
 echo "var TEST_ARGS = $TEST_ARGS;"
 mongo --eval "var TEST_ARGS = $TEST_ARGS;" jstests/_lodeRunner.js
