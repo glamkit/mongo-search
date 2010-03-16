@@ -240,39 +240,37 @@ mft.SearchPseudoCursor = function(coll_name, scores_and_ids) {
     scores_and_ids_heap.push(x); // in-place would be better, but let's leave that unless we think it would be useful
   });
   this.scores_and_ids_heap = scores_and_ids_heap;
-
-  
-  this.hasNext = function() {
-    return this.scores_and_ids_heap.size() > 0;
-  };
-  
-  this.next = function() {
-    return this.fetchScoredRecord(this.scores_and_ids_heap.pop());
-  };
-  
-  this.toArray = function() {
-    output = [];
-    while (this.hasNext()) {
-      output.push(this.next());
-    }
-    return output;
-  };
-  
-  this.fetchById = function(record_id) {
-    return db[this.coll_name].findOne({_id: record_id});
-  };
-  
-  this.fetchScoredRecord = function(score_and_id) {
-    rec = this.fetchById(score_and_id[1]);
-    rec.score = score_and_id[0];
-    return rec;
-  };
-
 };
 
+mft.SearchPseudoCursor.prototype = {};
 
+if (typeof mft.SearchPseudoCursor.prototype == 'undefined') { print('oh noez');}
 
+mft.SearchPseudoCursor.prototype.hasNext = function() {
+  return this.scores_and_ids_heap.size() > 0;
+};
 
+mft.SearchPseudoCursor.prototype.next = function() {
+  return this.fetchScoredRecord(this.scores_and_ids_heap.pop());
+};
+
+mft.SearchPseudoCursor.prototype.toArray = function() {
+  output = [];
+  while (this.hasNext()) {
+    output.push(this.next());
+  }
+  return output;
+};
+
+mft.SearchPseudoCursor.prototype.fetchById = function(record_id) {
+  return db[this.coll_name].findOne({_id: record_id});
+};
+
+mft.SearchPseudoCursor.prototype.fetchScoredRecord = function(score_and_id) {
+  rec = this.fetchById(score_and_id[1]);
+  rec.score = score_and_id[0];
+  return rec;
+};
 
 
 _all = {

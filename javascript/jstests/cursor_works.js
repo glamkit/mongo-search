@@ -1,6 +1,6 @@
 //tests for our fake cursor workalike
 //TODO: test real cursor here too and compare methods
-// load('jstests/_utility.js');
+load('jstests/_utility.js');
 
 var s = db.cursor_works;
 s.drop();
@@ -20,6 +20,7 @@ mft_util.load_records_from_list(fixture, 'cursor_works');
 var conf = db.fulltext_config;
 conf.insert({collection_name : 'cursor_works', fields: {'title': 1, 'content': 1}});
 test_cursor = db.eval("return new mft.SearchPseudoCursor('cursor_works', " + tojson(scores_and_ids) + ");")
+print(tojson(test_cursor.hasNext));
 assert(test_cursor.hasNext());
 assert.eq(test_cursor.next(), {
         "_id" : 3,
