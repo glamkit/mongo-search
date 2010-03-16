@@ -1,3 +1,4 @@
+//TODO: actually use asserts to make this a real test
 load('jstests/_utility.js');
 var s = db.search_works;
 s.drop();
