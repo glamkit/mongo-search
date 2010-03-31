@@ -224,7 +224,7 @@ search.getStemFunction = function() {
     return search._STEM_FUNCTION;
   } else {
     if (search.STEMMING == 'porter') { // no others available
-      return (search._STEM_FUNCTION = mft_util.get('PorterStemmer')); 
+      return (search._STEM_FUNCTION = mft.util.get('PorterStemmer')); 
     }
   }
 };
@@ -245,7 +245,7 @@ search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   this.coll_name = coll_name;
   // fetch the BinaryHeap constructor on a separate line for clarity
   
-  var BinaryHeap = mft_util.get('BinaryHeap');
+  var BinaryHeap = mft.util.get('BinaryHeap');
   
   var scores_and_ids_heap = BinaryHeap(function(x) { return -x[0] });
   
