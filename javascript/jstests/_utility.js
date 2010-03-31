@@ -1,3 +1,9 @@
+// We require the functions in this file to observe slightly different
+// conventions than other files - in particular, these objects must all be
+// serialisable and need not use the usual initialiser pattern
+// we still need the _all business.
+// depends upon _mft_live being created in _load.js
+
 mft_util = {
     TEST_DB_HOST : null,
     TEST_DB_PORT : null
@@ -51,6 +57,18 @@ mft_util.setup_tests = function(coll_name) {
     mft_util.load_server_functions();
 };
 
+mft_util.get = function(name) {
+    // objects in the mongod system.js collection lose closures, prototypes etc.
+    // we access them  using this thing by pulling them out of 
+    // the mft namespace and caching initialised versions in the _mft_live one.
+    if (typeof _mft_live[name] == 'undefined') {
+        _mft_live[name] = mft(); 
+    };
+    return _mft_live[name];
+};
+
+var _mft_live = {};
+
 _all = {
-  mft_util: mft_util
+  mft_util: mft_util,
 };

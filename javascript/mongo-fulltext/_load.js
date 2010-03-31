@@ -26,17 +26,13 @@ files.forEach(
         var module = _all;  // this symbol should be defined in x
                             // load() seems to execute in global scope
                             // making this very dirty code indeed
-        libs[x.name] = module;
+        for (var key in module) {
+          libs[key] = module[key];
+        }
     }
 );
 
 s = db.system.js;
+s.insert( { _id : 'mft', value : libs} ); //this is our global init namespace
+s.insert( { _id : '_mft_live', value : {}} );
 
-for (var filename in libs) {
-  var module = libs[filename];
-  print("= file " + filename);
-  for (var funcname in module) {
-    print("== function " + funcname);
-    s.insert( { _id : funcname , value : module[funcname]} );
-  }
-}

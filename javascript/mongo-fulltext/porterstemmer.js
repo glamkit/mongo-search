@@ -10,9 +10,7 @@
 // Release 2 (substantially revised) by Christopher McKenzie, Aug 2009
 "use strict";
 
-mft_stemming = {};
-
-mft_stemming.porterStemmerCreator = function(){
+function PorterStemmer() { return function () {
   var step2list = {
       "ational" : "ate",
       "tional" : "tion",
@@ -189,12 +187,8 @@ mft_stemming.porterStemmerCreator = function(){
     return w;
   };
   
-};
-
-// mft_stemming.porterStemmer = mft_stemming.porterStemmerCreator();
-
-// any method of calling the creator function here results in the closure not working properly...
+};};
 
 _all = {
-  mft_stemming: mft_stemming
+  PorterStemmer: PorterStemmer
 };
