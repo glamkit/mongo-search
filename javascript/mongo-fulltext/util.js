@@ -1,10 +1,5 @@
-// We require the functions in this file to observe slightly different
-// conventions than other files - in particular, these objects must all be
-// serialisable and need not use the usual initialiser pattern
-// we still need the _all business.
-
-
 //load mongoexport-style newline-separated objects in a file
+var util = function(){
 var util = {};
 
 util.load_records_from_file = function(record_file, coll_name) {
@@ -53,7 +48,7 @@ util.setup_tests = function(coll_name) {
     util.load_records_from_file('jstests/_fixture-basic.js');
     util.load_server_functions();
 };
-
+return util};
 _all = {
   util: util
 };

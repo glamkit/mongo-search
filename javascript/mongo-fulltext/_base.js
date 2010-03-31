@@ -19,6 +19,7 @@ mft.get = function(name) {
     // objects in the mongod system.js collection lose closures, prototypes etc.
     // we access them using this thing by storing intialisers in mft._sleeping, 
     // and caching initialised versions in the mft._inited one.
+    print('waking name '+name);
     if (typeof mft._awake[name] == 'undefined') {
         mft._awake[name] = mft._sleeping[name](); 
     };
