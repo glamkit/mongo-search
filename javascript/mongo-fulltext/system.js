@@ -16,6 +16,8 @@ mft = {
   _TOKENIZE_FUNCTION: null
 };
 
+
+
 mft.indexedFieldsAndWeights = function(coll_name) {
   // we expect a special collection named '_fulltext_config', with items having elems 'collection_name', and 'fields',
   // with 'fields' having keys being the field name, and the values being the weight.
@@ -31,6 +33,8 @@ mft.indexedFieldsAndWeights = function(coll_name) {
   collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
   return collection_conf.fields;
 };
+
+
 
 mft.search = function(coll_name, query_obj) {
   // check for $search member on query_obj
@@ -86,6 +90,8 @@ mft.search = function(coll_name, query_obj) {
 mft.sortNumericFirstDescending = function(a, b) {
   return b[0] - a[0];
 };
+
+
 
 mft.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
   var record_terms = record[mft.EXTRACTED_TERMS_FIELD];
@@ -150,6 +156,7 @@ mft.indexAll = function(coll_name) {
   cur.forEach(function(x) { mft.indexSingleRecord(coll_name, x, indexed_fields); });
 };
 
+
 mft.indexSingleRecord = function(coll_name, record, indexed_fields) {
   if (typeof indexed_fields === undefined) {// we can pass this in to save CPU in bulk indexing, but might not
     indexed_fields = mft.indexedFieldsAndWeights(coll_name);
@@ -187,6 +194,8 @@ mft.extractFieldTokens = function(coll_name, record, field, upweighting) {
   }
 };
 
+
+
 mft.stemAndTokenize = function(field_contents) {
   return mft.stem(mft.tokenize(field_contents.toLowerCase())); //TODO: actually stem as promised
 };
@@ -215,7 +224,7 @@ mft.getStemFunction = function() {
     return mft._STEM_FUNCTION;
   } else {
     if (mft.STEMMING == 'porter') { // no others available
-      return (mft._STEM_FUNCTION = mft_stemming.porterStemmerCreator()); // porterStemmer() returns a porter stemming fn when called
+      return (mft._STEM_FUNCTION = mft_util.get('PorterStemmer')); 
     }
   }
 };
@@ -234,7 +243,13 @@ mft.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
   // memory, and not taking lots of time to sort results we may not need - hence the heap
   this.coll_name = coll_name;
-  var scores_and_ids_heap = new mft_heap.BinaryHeap(function(x) { return -x[0] });
+  // fetch the BinaryHeap constructor on a separate line for clarity
+  
+  var BinaryHeap = mft_util.get('BinaryHeap');
+  
+  var scores_and_ids_heap = BinaryHeap(function(x) { return -x[0] });
+  
+  
   // print("DEBUG: score functino running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
   scores_and_ids.forEach( function(x) {
     scores_and_ids_heap.push(x); // in-place would be better, but let's leave that unless we think it would be useful
@@ -269,6 +284,7 @@ mft.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   };
 
 };
+
 
 
 

@@ -1,9 +1,6 @@
 "use strict";
 
-mft_heap = { };
-
-
-mft_heap.BinaryHeap = function (scoreFunction){
+function BinaryHeap() {return function (scoreFunction) {
 
   this.content = [];
   this.scoreFunction = scoreFunction;
@@ -121,12 +118,15 @@ mft_heap.BinaryHeap = function (scoreFunction){
   }
 
 
-};
+};};
 // adapted from http://eloquentjavascript.net/appendix2.html
 // thankyou Marijn Haverbeke
 
 // // GAH - this is what we should be doing, but it doesn't work
 /*
+
+var BinaryHeap = function () {};
+
 mft_heap.BinaryHeap.prototype = {
   
   push: function(element) {
@@ -243,5 +243,5 @@ mft_heap.BinaryHeap.prototype = {
 
 
 _all = {
-  mft_heap: mft_heap
+  BinaryHeap: BinaryHeap
 };
