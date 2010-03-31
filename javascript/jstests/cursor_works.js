@@ -19,7 +19,7 @@ mft.util.load_records_from_list(fixture, 'cursor_works');
 // mft.util.assign_on_server('scores_and_ids', scores_and_ids);
 var conf = db.fulltext_config;
 conf.insert({collection_name : 'cursor_works', fields: {'title': 1, 'content': 1}});
-test_cursor = db.eval("return new mft.SearchPseudoCursor('cursor_works', " + tojson(scores_and_ids) + ");")
+test_cursor = db.eval("return new mft.util.get('search').SearchPseudoCursor('cursor_works', " + tojson(scores_and_ids) + ");")
 assert(test_cursor.hasNext());
 assert.eq(test_cursor.next(), {
         "_id" : 3,
