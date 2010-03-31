@@ -1,6 +1,6 @@
 //tests for our fake cursor workalike
 //TODO: test real cursor here too and compare methods
-load('jstests/_utility.js');
+load('mongo-fulltext/_base.js');
 
 var s = db.cursor_works;
 s.drop();
