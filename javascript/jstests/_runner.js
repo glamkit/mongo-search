@@ -15,7 +15,7 @@ print('a');
 load('jstests/_utility.js');
 print('b');
 
-mft_util.setup_tests();
+mft.util.setup_tests();
 print('c');
 
 var FILE_MATCH_RE = /\/[^_].*\.js$/ ;
