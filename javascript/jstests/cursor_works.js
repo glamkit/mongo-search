@@ -1,6 +1,6 @@
 //tests for our fake cursor workalike
 //TODO: test real cursor here too and compare methods
-load('mongo-fulltext/_base.js');
+load('mongo-fulltext/_load.js');
 
 var s = db.cursor_works;
 s.drop();
@@ -15,11 +15,11 @@ var scores_and_ids = [
     [ 0.0, 2]
 ]
 var test_cursor = null;
-mft.util.load_records_from_list(fixture, 'cursor_works');
-// mft.util.assign_on_server('scores_and_ids', scores_and_ids);
+mft.get('util').load_records_from_list(fixture, 'cursor_works');
+// mft.get('util').assign_on_server('scores_and_ids', scores_and_ids);
 var conf = db.fulltext_config;
 conf.insert({collection_name : 'cursor_works', fields: {'title': 1, 'content': 1}});
-test_cursor = db.eval("return new mft.util.get('search').SearchPseudoCursor('cursor_works', " + tojson(scores_and_ids) + ");")
+test_cursor = db.eval("var SearchPseudoCursor = mft.get('search').SearchPseudoCursor; return new SearchPseudoCursor('cursor_works', " + tojson(scores_and_ids) + ");")
 assert(test_cursor.hasNext());
 assert.eq(test_cursor.next(), {
         "_id" : 3,

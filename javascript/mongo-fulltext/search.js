@@ -1,6 +1,7 @@
 "use strict";
 
-search = {
+var search = function (){
+var search = {
   // CONFIG ITEMS:
 
   STEMMING: 'porter', // doesn't do anything yet
@@ -224,7 +225,7 @@ search.getStemFunction = function() {
     return search._STEM_FUNCTION;
   } else {
     if (search.STEMMING == 'porter') { // no others available
-      return (search._STEM_FUNCTION = mft.util.get('PorterStemmer')); 
+      return (search._STEM_FUNCTION = mft.get('PorterStemmer')); 
     }
   }
 };
@@ -245,7 +246,7 @@ search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   this.coll_name = coll_name;
   // fetch the BinaryHeap constructor on a separate line for clarity
   
-  var BinaryHeap = mft.util.get('BinaryHeap');
+  var BinaryHeap = mft.get('BinaryHeap');
   
   var scores_and_ids_heap = BinaryHeap(function(x) { return -x[0] });
   
@@ -282,8 +283,8 @@ search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
     rec.score = score_and_id[0];
     return rec;
   };
-
-};
+return search;
+};};
 
 
 

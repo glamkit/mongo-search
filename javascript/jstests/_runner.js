@@ -12,10 +12,10 @@ if ((typeof TEST_ARGS == 'undefined') || (TEST_ARGS === null)) {
 }
 
 print('a');
-load('mongo-fulltext/_base.js');
+load('mongo-fulltext/_load.js');
 print('b');
 
-mft.util.setup_tests();
+mft.get('util').setup_tests();
 print('c');
 
 var FILE_MATCH_RE = /\/[^_].*\.js$/ ;

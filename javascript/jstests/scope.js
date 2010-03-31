@@ -1,4 +1,4 @@
-// load('mongo-fulltext/_base.js');
+// load('mongo-fulltext/_load.js');
 var s = db.scope_test;
 s.drop();
 var j = db.system.js;
