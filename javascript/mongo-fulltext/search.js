@@ -1,6 +1,6 @@
 "use strict";
 
-mft = {
+search = {
   // CONFIG ITEMS:
 
   STEMMING: 'porter', // doesn't do anything yet
@@ -18,7 +18,7 @@ mft = {
 
 
 
-mft.indexedFieldsAndWeights = function(coll_name) {
+search.indexedFieldsAndWeights = function(coll_name) {
   // we expect a special collection named '_fulltext_config', with items having elems 'collection_name', and 'fields',
   // with 'fields' having keys being the field name, and the values being the weight.
   //eg:
@@ -36,7 +36,7 @@ mft.indexedFieldsAndWeights = function(coll_name) {
 
 
 
-mft.search = function(coll_name, query_obj) {
+search.search = function(coll_name, query_obj) {
   // check for $search member on query_obj
   // if it doesn't exist, pass through to regular .find
   // if it does, parse the ft query string, and add the appropriate filter
@@ -47,23 +47,23 @@ mft.search = function(coll_name, query_obj) {
   // attached to them, in a way that emulates a cursor object.
   var search_query_string;
   var require_all;
-  if (query_obj[mft.SEARCH_ALL_PSEUDO_FIELD]) {
-    search_query_string = query_obj[mft.SEARCH_ALL_PSEUDO_FIELD];
+  if (query_obj[search.SEARCH_ALL_PSEUDO_FIELD]) {
+    search_query_string = query_obj[search.SEARCH_ALL_PSEUDO_FIELD];
     require_all = true;
-  } else if (query_obj[mft.SEARCH_ALL_PSEUDO_FIELD]) {
-    search_query_string = query_obj[mft.SEARCH_ANY_PSEUDO_FIELD];
+  } else if (query_obj[search.SEARCH_ALL_PSEUDO_FIELD]) {
+    search_query_string = query_obj[search.SEARCH_ANY_PSEUDO_FIELD];
     require_all = false;
   } else {
     return db[coll_name].find(query_obj); // no need to call search, you chump
   }
   print("DEBUG: query string is " + search_query_string);
-  var query_terms = mft.processQueryString(search_query_string);
+  var query_terms = search.processQueryString(search_query_string);
   print("DEBUG: query terms is " + (query_terms.join(',') + " with length " + query_terms.length));
-  query_obj[mft.EXTRACTED_TERMS_FIELD] = mft.filterArg(coll_name, query_terms, require_all);
+  query_obj[search.EXTRACTED_TERMS_FIELD] = search.filterArg(coll_name, query_terms, require_all);
   if (require_all) {
-    delete(query_obj[mft.SEARCH_ALL_PSEUDO_FIELD]); // need to get rid f pseudo args, as they stop .find() from returning anything
+    delete(query_obj[search.SEARCH_ALL_PSEUDO_FIELD]); // need to get rid f pseudo args, as they stop .find() from returning anything
   } else {
-    delete(query_obj[mft.SEARCH_ANY_PSEUDO_FIELD]);
+    delete(query_obj[search.SEARCH_ANY_PSEUDO_FIELD]);
   }
   print("DEBUG: query_obj=" + tojson(query_obj));
   var filtered = db[coll_name].find(query_obj);
@@ -71,11 +71,11 @@ mft.search = function(coll_name, query_obj) {
   print("DEBUG: num recs found: " + filtered.count());
   filtered.forEach(
     function(record) {
-      var score = mft.scoreRecordAgainstQuery(coll_name, record, query_terms);
+      var score = search.scoreRecordAgainstQuery(coll_name, record, query_terms);
       scores_and_ids.push([score, record._id]);
     });
-  return new mft.SearchPseudoCursor(coll_name, scores_and_ids);
-  // scores_and_ids.sort(mft.sortNumericFirstDescending); // need to provide a custom search function anyway, as JS does sorts alphabetically
+  return new search.SearchPseudoCursor(coll_name, scores_and_ids);
+  // scores_and_ids.sort(search.sortNumericFirstDescending); // need to provide a custom search function anyway, as JS does sorts alphabetically
   // var scored_records = Array();
   // // this is the dodgy way - need to do a cursor in the future
   // for (var i = 0; i < scores_and_ids.length; i++) {
@@ -87,14 +87,14 @@ mft.search = function(coll_name, query_obj) {
   // return scored_records;
 };
 
-mft.sortNumericFirstDescending = function(a, b) {
+search.sortNumericFirstDescending = function(a, b) {
   return b[0] - a[0];
 };
 
 
 
-mft.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
-  var record_terms = record[mft.EXTRACTED_TERMS_FIELD];
+search.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
+  var record_terms = record[search.EXTRACTED_TERMS_FIELD];
   print("DEBUG: record=" + record);
   var query_terms_set = {};
   var score = 0.0;
@@ -108,7 +108,7 @@ mft.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
     if (term in query_terms_set) {
       var term_idf = idf_cache[term];
       if (term_idf === undefined) {
-        term_idf = mft.getTermIdf(coll_name, term);
+        term_idf = search.getTermIdf(coll_name, term);
         idf_cache[term] = term_idf;
       }
       score += term_idf;
@@ -122,20 +122,20 @@ mft.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
   // This should provide a nice approximation that will give decent results at least relative to the query, which is all we care about.
 };
 
-mft.getTermIdf = function(coll_name, term) {
+search.getTermIdf = function(coll_name, term) {
   // this currently doesn't have any caching smarts.
   // we could cache the IDF for each doc in the collection, but that would make updating more complicated
   // for the moment I'll gamble on mongodb being quick enough to make it not a problem
   // 
   var term_filter_obj = {};
-  term_filter_obj[mft.EXTRACTED_TERMS_FIELD] = mft.filterArg(coll_name, [term], true);
+  term_filter_obj[search.EXTRACTED_TERMS_FIELD] = search.filterArg(coll_name, [term], true);
   var term_count = db[coll_name].find(term_filter_obj).count();
   if (term_count === 0) { return 0.0; }
   var num_docs = db[coll_name].find().count(); // TODO: memoize, or find a better method for getting this
   return Math.log(num_docs) - Math.log(term_count);
 };
 
-mft.filterArg = function(coll_name, query_terms, require_all) {
+search.filterArg = function(coll_name, query_terms, require_all) {
   if (require_all === undefined) {
     require_all = true;
   }
@@ -144,45 +144,45 @@ mft.filterArg = function(coll_name, query_terms, require_all) {
   return filter_obj;
 };
 
-mft.processQueryString = function(query_string) {
-  return mft.stemAndTokenize(query_string); // maybe tokenizing should be different for queries?
+search.processQueryString = function(query_string) {
+  return search.stemAndTokenize(query_string); // maybe tokenizing should be different for queries?
 };
 
-mft.indexAll = function(coll_name) {
+search.indexAll = function(coll_name) {
   print("DEBUG: indexing all records in " + coll_name);
   var cur = db[coll_name].find();
-  indexed_fields = mft.indexedFieldsAndWeights(coll_name);
+  indexed_fields = search.indexedFieldsAndWeights(coll_name);
   print("DEBUG: indexed fields and weights: " + tojson(indexed_fields));
-  cur.forEach(function(x) { mft.indexSingleRecord(coll_name, x, indexed_fields); });
+  cur.forEach(function(x) { search.indexSingleRecord(coll_name, x, indexed_fields); });
 };
 
 
-mft.indexSingleRecord = function(coll_name, record, indexed_fields) {
+search.indexSingleRecord = function(coll_name, record, indexed_fields) {
   if (typeof indexed_fields === undefined) {// we can pass this in to save CPU in bulk indexing, but might not
-    indexed_fields = mft.indexedFieldsAndWeights(coll_name);
+    indexed_fields = search.indexedFieldsAndWeights(coll_name);
   }
   var all_extracted_terms = Array();
   for (var field in indexed_fields) {
-    all_extracted_terms = all_extracted_terms.concat(mft.extractFieldTokens(coll_name, record, field, indexed_fields[field]));
+    all_extracted_terms = all_extracted_terms.concat(search.extractFieldTokens(coll_name, record, field, indexed_fields[field]));
   }
-  record[mft.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
+  record[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
   print("DEBUG: record is now: " + tojson(record));
   db[coll_name].save(record);
 };
 
-mft.indexSingleRecordFromId = function(coll_name, record_id) {
+search.indexSingleRecordFromId = function(coll_name, record_id) {
   var rec = db[coll_name].findOne({'_id': record_id});
-  mft.indexSingleRecord(coll_name, rec);
+  search.indexSingleRecord(coll_name, rec);
 };
 
-mft.extractFieldTokens = function(coll_name, record, field, upweighting) {
+search.extractFieldTokens = function(coll_name, record, field, upweighting) {
   // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
   var contents = record[field];
   print("DEBUG: contents for field " + field + ": " + contents);
   if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
     return;
   }
-  var processed_contents = mft.stemAndTokenize(contents);
+  var processed_contents = search.stemAndTokenize(contents);
   if (upweighting == 1) { // special -casing for the common case - may be slightly quicker avoiding the array copy
     return processed_contents;
   } else {
@@ -196,17 +196,17 @@ mft.extractFieldTokens = function(coll_name, record, field, upweighting) {
 
 
 
-mft.stemAndTokenize = function(field_contents) {
-  return mft.stem(mft.tokenize(field_contents.toLowerCase())); //TODO: actually stem as promised
+search.stemAndTokenize = function(field_contents) {
+  return search.stem(search.tokenize(field_contents.toLowerCase())); //TODO: actually stem as promised
 };
 
-mft.tokenizeBasic = function(field_contents) {
+search.tokenizeBasic = function(field_contents) {
   var token_re = /\b(\w[\w'-]*\w|\w)\b/g;
   return field_contents.match(token_re);
 };
 
-mft.stem = function(field_tokens) {
-  var stem_fn = mft.getStemFunction();
+search.stem = function(field_tokens) {
+  var stem_fn = search.getStemFunction();
   var stemmed = Array();
   for (var i = 0; i < field_tokens.length; i++) {
     stemmed.push(stem_fn(field_tokens[i]));
@@ -214,32 +214,32 @@ mft.stem = function(field_tokens) {
   return stemmed;
 };
 
-mft.tokenize = function(field_contents) {
-  var tokenize_fn = mft.getTokenizeFunction();
+search.tokenize = function(field_contents) {
+  var tokenize_fn = search.getTokenizeFunction();
   return tokenize_fn(field_contents);
 };
 
-mft.getStemFunction = function() {
-  if (mft._STEM_FUNCTION) {
-    return mft._STEM_FUNCTION;
+search.getStemFunction = function() {
+  if (search._STEM_FUNCTION) {
+    return search._STEM_FUNCTION;
   } else {
-    if (mft.STEMMING == 'porter') { // no others available
-      return (mft._STEM_FUNCTION = mft_util.get('PorterStemmer')); 
+    if (search.STEMMING == 'porter') { // no others available
+      return (search._STEM_FUNCTION = mft_util.get('PorterStemmer')); 
     }
   }
 };
 
-mft.getTokenizeFunction = function() {
-  if (mft._TOKENIZE_FUNCTION) {
-    return mft._TOKENIZE_FUNCTION;
+search.getTokenizeFunction = function() {
+  if (search._TOKENIZE_FUNCTION) {
+    return search._TOKENIZE_FUNCTION;
   } else {
-    if (mft.TOKENIZING == 'basic') { // no others available
-      return (mft._TOKENIZE_FUNCTION = mft.tokenizeBasic);
+    if (search.TOKENIZING == 'basic') { // no others available
+      return (search._TOKENIZE_FUNCTION = search.tokenizeBasic);
     }
   }  
 };
 
-mft.SearchPseudoCursor = function(coll_name, scores_and_ids) {
+search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
   // memory, and not taking lots of time to sort results we may not need - hence the heap
   this.coll_name = coll_name;
@@ -292,6 +292,6 @@ mft.SearchPseudoCursor = function(coll_name, scores_and_ids) {
 
 
 _all = {
-  mft: mft
+  search: search
 };
   
