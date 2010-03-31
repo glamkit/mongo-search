@@ -12,7 +12,7 @@ if ((typeof TEST_ARGS == 'undefined') || (TEST_ARGS === null)) {
 }
 
 print('a');
-load('jstests/_utility.js');
+load('mongo-fulltext/_base.js');
 print('b');
 
 mft.util.setup_tests();
