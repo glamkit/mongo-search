@@ -1,4 +1,4 @@
-load('mongo-fulltext/_base.js');
+load('mongo-fulltext/_load.js');
 var s = db.search_works;
 s.drop();
 var fixture = [
