@@ -8,17 +8,22 @@
 if (typeof mft == 'undefined') {
     mft = {};
 }
+if (typeof mft._sleeping == 'undefined') {
+    mft._sleeping = {};
+}
+if (typeof mft._awake == 'undefined') {
+    mft._awake = {};
+}
 
 mft.get = function(name) {
     // objects in the mongod system.js collection lose closures, prototypes etc.
-    // we access them using this thing by pulling them out of 
-    // the mft namespace and caching initialised versions in the mft._inited one.
-    if (typeof mft._inited[name] == 'undefined') {
-        mft._inited[name] = mft[name](); 
+    // we access them using this thing by storing intialisers in mft._sleeping, 
+    // and caching initialised versions in the mft._inited one.
+    if (typeof mft._awake[name] == 'undefined') {
+        mft._awake[name] = mft._sleeping[name](); 
     };
-    return mft._inited[name];
+    return mft._awake[name];
 };
 
-mft._inited = {};
 
 

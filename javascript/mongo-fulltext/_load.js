@@ -31,7 +31,7 @@ files.forEach(
                             // load() seems to execute in global scope
                             // making this very dirty code indeed
         for (var key in module) {
-          mft[key] = module[key];
+          mft._sleeping[key] = module[key];
         }
     }
 );

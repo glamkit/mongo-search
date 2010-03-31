@@ -6,7 +6,7 @@ var fixture = [
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels" },
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers" }
 ]
-mft.util.load_records_from_list(fixture, 'search_works');
+mft.get('util').load_records_from_list(fixture, 'search_works');
 var result ;
 var conf = db.fulltext_config
 conf.insert({'collection_name' : 'search_works', 'fields': {'title': 5, 'content': 1}});

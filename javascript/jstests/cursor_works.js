@@ -15,8 +15,8 @@ var scores_and_ids = [
     [ 0.0, 2]
 ]
 var test_cursor = null;
-mft.util.load_records_from_list(fixture, 'cursor_works');
-// mft.util.assign_on_server('scores_and_ids', scores_and_ids);
+mft.get('util').load_records_from_list(fixture, 'cursor_works');
+// mft.get('util').assign_on_server('scores_and_ids', scores_and_ids);
 var conf = db.fulltext_config;
 conf.insert({collection_name : 'cursor_works', fields: {'title': 1, 'content': 1}});
 test_cursor = db.eval("var SearchPseudoCursor = mft.get('search').SearchPseudoCursor; return new SearchPseudoCursor('cursor_works', " + tojson(scores_and_ids) + ");")
