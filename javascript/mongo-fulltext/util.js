@@ -49,6 +49,7 @@ util.setup_tests = function(coll_name) {
     util.load_server_functions();
 };
 return util};
+
 _all = {
   util: util
 };
