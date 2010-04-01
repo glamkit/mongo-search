@@ -119,6 +119,7 @@ function BinaryHeap() {return function (scoreFunction) {
 
 
 };};
+
 // adapted from http://eloquentjavascript.net/appendix2.html
 // thankyou Marijn Haverbeke
 

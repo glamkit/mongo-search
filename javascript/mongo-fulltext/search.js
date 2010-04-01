@@ -241,10 +241,7 @@ search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   // fetch the BinaryHeap constructor on a separate line for clarity
   
   var BinaryHeap = mft.get('BinaryHeap');
-  print('%fpp');
-  print('%'+tojson(BinaryHeap));
-  var scores_and_ids_heap = BinaryHeap(function(x) { return -x[0] });
-  
+  var scores_and_ids_heap = new BinaryHeap(function(x) { return -x[0] });
   
   // print("DEBUG: score functino running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
   scores_and_ids.forEach( function(x) {
