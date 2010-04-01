@@ -1,6 +1,7 @@
 "use strict";
 
 var search = function (){
+    
 var search = {
   // CONFIG ITEMS:
 
@@ -19,6 +20,7 @@ var search = {
 
 
 
+
 search.indexedFieldsAndWeights = function(coll_name) {
   // we expect a special collection named '_fulltext_config', with items having elems 'collection_name', and 'fields',
   // with 'fields' having keys being the field name, and the values being the weight.
@@ -34,6 +36,7 @@ search.indexedFieldsAndWeights = function(coll_name) {
   collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
   return collection_conf.fields;
 };
+
 
 
 
@@ -94,6 +97,7 @@ search.sortNumericFirstDescending = function(a, b) {
 
 
 
+
 search.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
   var record_terms = record[search.EXTRACTED_TERMS_FIELD];
   print("DEBUG: record=" + record);
@@ -145,6 +149,7 @@ search.filterArg = function(coll_name, query_terms, require_all) {
   return filter_obj;
 };
 
+
 search.processQueryString = function(query_string) {
   return search.stemAndTokenize(query_string); // maybe tokenizing should be different for queries?
 };
@@ -156,6 +161,7 @@ search.indexAll = function(coll_name) {
   print("DEBUG: indexed fields and weights: " + tojson(indexed_fields));
   cur.forEach(function(x) { search.indexSingleRecord(coll_name, x, indexed_fields); });
 };
+
 
 
 search.indexSingleRecord = function(coll_name, record, indexed_fields) {
@@ -197,6 +203,7 @@ search.extractFieldTokens = function(coll_name, record, field, upweighting) {
 
 
 
+
 search.stemAndTokenize = function(field_contents) {
   return search.stem(search.tokenize(field_contents.toLowerCase())); //TODO: actually stem as promised
 };
@@ -220,6 +227,7 @@ search.tokenize = function(field_contents) {
   return tokenize_fn(field_contents);
 };
 
+
 search.getStemFunction = function() {
   if (search._STEM_FUNCTION) {
     return search._STEM_FUNCTION;
@@ -239,6 +247,7 @@ search.getTokenizeFunction = function() {
     }
   }  
 };
+
 
 search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
@@ -283,8 +292,13 @@ search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
     rec.score = score_and_id[0];
     return rec;
   };
+
+
+print('about to return '+ tojson(search));
+
+};
 return search;
-};};
+};
 
 
 
