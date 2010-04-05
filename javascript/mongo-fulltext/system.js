@@ -28,6 +28,17 @@ mft.indexedFieldsAndWeights = function(coll_name) {
       //   }
       // }
   
+  //> fc = {collection_name: 'gallery_collection_items', fields: {'title': 10, 'further_information': 1}}// 
+  // {
+  //         "collection_name" : "gallery_collection_items",
+  //         "fields" : {
+  //                 "title" : 10,
+  //                 "further_information" : 1
+  //         }
+  // }
+  // > db.fulltext_config.save(fc)
+  // >
+  
   collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
   return collection_conf.fields;
 };
@@ -116,7 +127,7 @@ mft.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
   // This should provide a nice approximation that will give decent results at least relative to the query, which is all we care about.
 };
 
-mft.getTermIdf = function(coll_name, term) {
+mft.calcTermIdf = function(coll_name, term) {
   // this currently doesn't have any caching smarts.
   // we could cache the IDF for each doc in the collection, but that would make updating more complicated
   // for the moment I'll gamble on mongodb being quick enough to make it not a problem
@@ -127,6 +138,32 @@ mft.getTermIdf = function(coll_name, term) {
   if (term_count === 0) { return 0.0; }
   var num_docs = db[coll_name].find().count(); // TODO: memoize, or find a better method for getting this
   return Math.log(num_docs) - Math.log(term_count);
+};
+
+mft.getTermIdf = function(coll_name, term) {
+  var score_record = db.fulltext_term_scores.findOne({collection_name: coll_name, term: term});
+  print("DEBUG: score_record=" + tojson(score_record));
+  if (score_record === null) {
+    print("WARNING: no score cached for term " + term);
+    return 0.0;
+  } else {
+    if (score_record.dirty) {
+      print("WARNING: score for term " + term + " may be incorrect");
+    }
+    return score_record.score;
+  }
+};
+
+mft.calcAndStoreTermIdf = function(coll_name, term) {
+  idf_score = mft.calcTermIdf(coll_name, term);
+  print("DEBUG: calculated IDF for term " + term + " as " + idf_score);
+  db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {collection_name: coll_name, term: term, score: idf_score, dirty: false}, {upsert: true});
+};
+
+mft.storeEmptyTermIdf = function(coll_name, term) {
+  // adds the term into the index if it's not already there, but marks it as dirty
+  print("DEBUG: storing empty score for term " + term);
+  db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {collection_name: coll_name, term: term, dirty: true}, {upsert: true});
 };
 
 mft.filterArg = function(coll_name, query_terms, require_all) {
@@ -147,12 +184,16 @@ mft.indexAll = function(coll_name) {
   var cur = db[coll_name].find();
   indexed_fields = mft.indexedFieldsAndWeights(coll_name);
   print("DEBUG: indexed fields and weights: " + tojson(indexed_fields));
-  cur.forEach(function(x) { mft.indexSingleRecord(coll_name, x, indexed_fields); });
+  cur.forEach(function(x) { mft.indexSingleRecord(coll_name, x, indexed_fields, false); });
+  mft.fillDirtyIdfScores(coll_name);
 };
 
-mft.indexSingleRecord = function(coll_name, record, indexed_fields) {
-  if (typeof indexed_fields === undefined) {// we can pass this in to save CPU in bulk indexing, but might not
+mft.indexSingleRecord = function(coll_name, record, indexed_fields, calculate_idf) {
+  if (typeof indexed_fields === 'undefined') {// we can pass this in to save CPU in bulk indexing, but might not
     indexed_fields = mft.indexedFieldsAndWeights(coll_name);
+  }
+  if (typeof calculate_idf === 'undefined') {
+    calculate_idf = true; // assume we're just indexing this one doc - so we probably want to cal at the time
   }
   var all_extracted_terms = Array();
   for (var field in indexed_fields) {
@@ -161,6 +202,11 @@ mft.indexSingleRecord = function(coll_name, record, indexed_fields) {
   record[mft.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
   print("DEBUG: record is now: " + tojson(record));
   db[coll_name].save(record);
+  if (calculate_idf) { // if we're doing just one doc
+    all_extracted_terms.forEach(function(x) {mft.calcAndStoreTermIdf(coll_name, x);});
+  } else { // we're doing it in bulk, so defer calcs until later
+    all_extracted_terms.forEach(function(x) {mft.storeEmptyTermIdf(coll_name, x);});
+  }
 };
 
 mft.indexSingleRecordFromId = function(coll_name, record_id) {
@@ -168,9 +214,17 @@ mft.indexSingleRecordFromId = function(coll_name, record_id) {
   mft.indexSingleRecord(coll_name, rec);
 };
 
+mft.fillDirtyIdfScores = function(coll_name) {
+  var cur = db.fulltext_term_scores.find({collection_name: coll_name, dirty: true});
+  cur.forEach( function(x) { mft.calcAndStoreTermIdf(coll_name, x.term); });
+};
+
 mft.extractFieldTokens = function(coll_name, record, field, upweighting) {
   // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
   var contents = record[field];
+  if (typeof contents == 'object') {
+    contents = contents.join(" ");
+  }
   print("DEBUG: contents for field " + field + ": " + contents);
   if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
     return;
@@ -236,7 +290,7 @@ mft.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
   // memory, and not taking lots of time to sort results we may not need - hence the heap
   this.coll_name = coll_name;
-  var scores_and_ids_heap = new mft_heap.BinaryHeap(function(x) { return -x[0] });
+  var scores_and_ids_heap = new mft_heap.BinaryHeap(function(x) { return -x[0]; });
   // print("DEBUG: score functino running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
   scores_and_ids.forEach( function(x) {
     scores_and_ids_heap.push(x); // in-place would be better, but let's leave that unless we think it would be useful
