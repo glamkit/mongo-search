@@ -35,6 +35,13 @@ mft_util.load_server_functions = function() {
     load('mongo-fulltext/_load.js');
 };
 
+//pump a client shell variable to global scope on the server
+mft_util.assign_on_server = function(name, value) {
+    // can't use a 'var' scope def here. things explode.
+    var servereval = name + " = " + tojson(value)+ ";";
+    db.eval(servereval);
+};
+
 mft_util.setup_tests = function(coll_name) {
     if (typeof coll_name == 'undefined') {
         coll_name = 'test';

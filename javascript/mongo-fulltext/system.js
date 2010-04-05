@@ -284,8 +284,6 @@ mft.getTokenizeFunction = function() {
   }  
 };
 
-
-
 mft.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
   // memory, and not taking lots of time to sort results we may not need - hence the heap
