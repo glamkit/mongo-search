@@ -33,6 +33,7 @@ util.load_server_functions = function() {
     load('mongo-fulltext/_load.js');
 };
 
+
 //pump a client shell variable to global scope on the server
 util.assign_on_server = function(name, value) {
     // can't use a 'var' scope def here. things explode.
