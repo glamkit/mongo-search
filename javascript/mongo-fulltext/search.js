@@ -41,7 +41,7 @@ search.search = function(coll_name, query_obj) {
   // clause to the non-ft-search components, execute that, then
   // score every remaining document, and put those sorted IDs and scores in a record in 
   // a private collection (hashed by the whole query obj, which we can check next time around)
-  // then iterate through the IDs and scores and return the corrpesponding records with the IDs
+  // then iterate through the IDs and scores and return the corresponding records with the IDs
   // attached to them, in a way that emulates a cursor object.
   var search_query_string;
   var require_all;
@@ -157,11 +157,13 @@ search.indexSingleRecord = function(coll_name, record, indexed_fields) {
     indexed_fields = search.indexedFieldsAndWeights(coll_name);
   }
   var all_extracted_terms = Array();
-  for (var field in indexed_fields) {
-    all_extracted_terms = all_extracted_terms.concat(search.extractFieldTokens(coll_name, record, field, indexed_fields[field]));
+  for (var field in indexed_fields) {    
+    all_extracted_terms = Array.concat(all_extracted_terms,
+      search.extractFieldTokens(coll_name, record, field, indexed_fields[field])
+    );
   }
   record[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
-  print("DEBUG: record is now: " + tojson(record));
+  // print("DEBUG: record is now: " + tojson(record));
   db[coll_name].save(record);
 };
 
@@ -173,11 +175,10 @@ search.indexSingleRecordFromId = function(coll_name, record_id) {
 search.extractFieldTokens = function(coll_name, record, field, upweighting) {
   // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
   var contents = record[field];
-  print("DEBUG: contents for field " + field + ": " + contents);
   if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
     return;
   }
-  var processed_contents = search.stemAndTokenize(contents);
+  var processed_contents = search.stemAndTokenize(contents);  
   if (upweighting == 1) { // special -casing for the common case - may be slightly quicker avoiding the array copy
     return processed_contents;
   } else {
@@ -198,7 +199,7 @@ search.tokenizeBasic = function(field_contents) {
   return field_contents.match(token_re);
 };
 
-search.stem = function(field_tokens) {
+search.stem = function(field_tokens) {  
   var stem_fn = search.getStemFunction();
   var stemmed = Array();
   for (var i = 0; i < field_tokens.length; i++) {
@@ -212,13 +213,18 @@ search.tokenize = function(field_contents) {
   return tokenize_fn(field_contents);
 };
 
-
 search.getStemFunction = function() {
   if (search._STEM_FUNCTION) {
     return search._STEM_FUNCTION;
   } else {
     if (search.STEMMING == 'porter') { // no others available
-      return (search._STEM_FUNCTION = mft.get('PorterStemmer')); 
+      //slightly weird invocation here to preserve consistency - get returns
+      //a constructor function always
+      var stemmer = null;
+      stemmer = mft.get('PorterStemmer');
+      return (search._STEM_FUNCTION = new stemmer()); 
+    } else {
+      throw "Invalid stemming function " + tojson(search.STEMMING);
     }
   }
 };
@@ -258,6 +264,9 @@ search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
     return this.fetchScoredRecord(this.scores_and_ids_heap.pop());
   };
   
+  //ATM this doesn't get called...
+  //db.eval("return tojson(mftsearch.search('search_works', {$search: 'fish'}).toArray());");
+  //returns a non-array (appears to be a 
   this.toArray = function() {
     output = [];
     while (this.hasNext()) {
