@@ -54,19 +54,19 @@ search.search = function(coll_name, query_obj) {
   } else {
     return db[coll_name].find(query_obj); // no need to call search, you chump
   }
-  print("DEBUG: query string is " + search_query_string);
+  mft.debug_print("query string is " + search_query_string);
   var query_terms = search.processQueryString(search_query_string);
-  print("DEBUG: query terms is " + (query_terms.join(',') + " with length " + query_terms.length));
+  mft.debug_print("query terms is " + (query_terms.join(',') + " with length " + query_terms.length));
   query_obj[search.EXTRACTED_TERMS_FIELD] = search.filterArg(coll_name, query_terms, require_all);
   if (require_all) {
     delete(query_obj[search.SEARCH_ALL_PSEUDO_FIELD]); // need to get rid f pseudo args, as they stop .find() from returning anything
   } else {
     delete(query_obj[search.SEARCH_ANY_PSEUDO_FIELD]);
   }
-  print("DEBUG: query_obj=" + tojson(query_obj));
+  mft.debug_print("query_obj=" + tojson(query_obj));
   var filtered = db[coll_name].find(query_obj);
   var scores_and_ids = Array();
-  print("DEBUG: num recs found: " + filtered.count());
+  mft.debug_print("num recs found: " + filtered.count());
   filtered.forEach(
     function(record) {
       var score = search.scoreRecordAgainstQuery(coll_name, record, query_terms);
@@ -91,13 +91,13 @@ search.sortNumericFirstDescending = function(a, b) {
 
 search.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
   var record_terms = record[search.EXTRACTED_TERMS_FIELD];
-  print("DEBUG: record=" + record);
+  mft.debug_print("record=" + record);
   var query_terms_set = {};
   var score = 0.0;
   for (var i = 0; i < query_terms.length; i++) {
     query_terms_set[query_terms[i]] = true; // to avoid needing to iterate
   }
-  print("DEBUG: query_terms_set=" + tojson(query_terms_set));
+  mft.debug_print("query_terms_set=" + tojson(query_terms_set));
   var idf_cache = {};
   for (var j = 0; j < record_terms.length; j++) {
     var term = record_terms[j];
@@ -145,10 +145,10 @@ search.processQueryString = function(query_string) {
 };
 
 search.indexAll = function(coll_name) {
-  print("DEBUG: indexing all records in " + coll_name);
+  mft.debug_print("indexing all records in " + coll_name);
   var cur = db[coll_name].find();
   indexed_fields = search.indexedFieldsAndWeights(coll_name);
-  print("DEBUG: indexed fields and weights: " + tojson(indexed_fields));
+  mft.debug_print("indexed fields and weights: " + tojson(indexed_fields));
   cur.forEach(function(x) { search.indexSingleRecord(coll_name, x, indexed_fields); });
 };
 
@@ -163,7 +163,7 @@ search.indexSingleRecord = function(coll_name, record, indexed_fields) {
     );
   }
   record[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
-  // print("DEBUG: record is now: " + tojson(record));
+  // mft.debug_print("record is now: " + tojson(record));
   db[coll_name].save(record);
 };
 
@@ -249,7 +249,7 @@ search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
   var BinaryHeap = mft.get('BinaryHeap');
   var scores_and_ids_heap = new BinaryHeap(function(x) { return -x[0] });
   
-  // print("DEBUG: score functino running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
+  // mft.debug_print("score function running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
   scores_and_ids.forEach( function(x) {
     scores_and_ids_heap.push(x); // in-place would be better, but let's leave that unless we think it would be useful
   });

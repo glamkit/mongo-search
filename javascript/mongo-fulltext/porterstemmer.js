@@ -55,7 +55,7 @@ function PorterStemmer() { return function () {
     mgr1 = "^(" + C + ")?" + V + C + V + C,       // [C]VCVC... is m>1
     s_v = "^(" + C + ")?" + v;                   // vowel in stem
 
-  print("DEBUG: instantiating new porter stemmer function");
+  mft.debug_print("instantiating new porter stemmer function");
   // (hopefully we're not doing this too often)
   return function (w) {
     var   stem,

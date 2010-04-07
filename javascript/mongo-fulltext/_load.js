@@ -11,19 +11,27 @@ s = db.system.js;
 s.remove({});
 
 
-var files = listFiles("mongo-fulltext");
+var all_files = listFiles("mongo-fulltext");
 var FILE_MATCH_RE = /\/[^_].*\.js$/; // Notice that leading slash in that RE.
                                      // would need changing if not a subdir
+var files_to_load = new Array();         
+                            
+for (var i = 0; i < all_files.length; i++) {
+  var this_file = all_files[i];
+  if (!FILE_MATCH_RE.test(this_file.name)) { 
+      //Ignore non-js and things with underscore prefixes
+      print(" >>>>>>>>>>>>>>> skipping " + this_file.name);
+  } else {
+      if (this_file.name == 'util.js') { //util is used by other files.
+          files_to_load.unshift(this_file);
+      } else {
+          files_to_load.push(this_file);
+      }
+  }
+}
 // load all functions in to an object
-files.forEach(
+files_to_load.forEach(
     function(x) {
-        //Ignore non-js and things with underscore prefixes
-        if (!FILE_MATCH_RE.test(x.name)){ 
-            print(" >>>>>>>>>>>>>>> skipping " + x.name);
-            return;
-        }
-        
-        
         print(" *******************************************");
         print("         Loading : " + x.name + " ...");
         load(x.name);
