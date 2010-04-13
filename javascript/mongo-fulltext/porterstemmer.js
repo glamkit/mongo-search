@@ -1,3 +1,4 @@
+"use strict";
 // Porter stemmer in Javascript. Few comments, but it's easy to follow against the rules in the original
 // paper, in
 //
@@ -8,7 +9,8 @@
 
 // Release 1 be 'andargor', Jul 2004
 // Release 2 (substantially revised) by Christopher McKenzie, Aug 2009
-"use strict";
+// I suspect this could be made faster by not constantly redefining regexes 
+// and recycling their names
 
 function PorterStemmer() {
     return function () {
