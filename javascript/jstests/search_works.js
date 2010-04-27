@@ -23,23 +23,6 @@ result = db.eval("return mftsearch.search('search_works', {$search: 'fish'}).toA
 
 assert.eq(result, [
         {
-                "_id" : 1,
-                "title" : "fish",
-                "content" : "groupers like John Dory",
-                "_extracted_terms" : [
-                        "fish",
-                        "fish",
-                        "fish",
-                        "fish",
-                        "fish",
-                        "grouper",
-                        "like",
-                        "john",
-                        "dori"
-                ],
-                "score" : 0.6757751801802742
-        },
-        {
                 "_id" : 3,
                 "title" : "dogs & fish",
                 "content" : "whippets kick groupers",
@@ -58,7 +41,24 @@ assert.eq(result, [
                         "kick",
                         "grouper"
                 ],
-                "score" : 0.5622789375752065
+                "score" : 1.3867504905630728
+        },
+        {
+                "_id" : 1,
+                "title" : "fish",
+                "content" : "groupers like John Dory",
+                "_extracted_terms" : [
+                        "fish",
+                        "fish",
+                        "fish",
+                        "fish",
+                        "fish",
+                        "grouper",
+                        "like",
+                        "john",
+                        "dori"
+                ],
+                "score" : 0.9445005099847485
         }
 ]);
 result = db.eval("return mftsearch.search('search_works', {$search: 'Dory'})").toArray();

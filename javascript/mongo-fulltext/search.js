@@ -30,6 +30,17 @@ search.indexedFieldsAndWeights = function(coll_name) {
       //   }
       // }
   
+  //> fc = {collection_name: 'gallery_collection_items', fields: {'title': 10, 'further_information': 1}}// 
+  // {
+  //         "collection_name" : "gallery_collection_items",
+  //         "fields" : {
+  //                 "title" : 10,
+  //                 "further_information" : 1
+  //         }
+  // }
+  // > db.fulltext_config.save(fc)
+  // >
+  
   collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
   return collection_conf.fields;
 };
@@ -99,26 +110,27 @@ search.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
   }
   mft.debug_print("query_terms_set=" + tojson(query_terms_set));
   var idf_cache = {};
+  var record_vec_sum_sq = 0;
   for (var j = 0; j < record_terms.length; j++) {
     var term = record_terms[j];
+    var term_idf = idf_cache[term];
+    if (term_idf === undefined) {
+      term_idf = search.getTermIdf(coll_name, term);
+      idf_cache[term] = term_idf;
+    }
     if (term in query_terms_set) {
-      var term_idf = idf_cache[term];
-      if (term_idf === undefined) {
-        term_idf = search.getTermIdf(coll_name, term);
-        idf_cache[term] = term_idf;
-      }
       score += term_idf;
     }
+    record_vec_sum_sq += term_idf * term_idf;
   }
-  return score/Math.sqrt(record_terms.length);
-  // for cosine similarity, we should be normalizing the document vector against the sqrt of the sums of the sqares of all term
-  // but that would require knowing the IDF scores of all terms, rather than just the ones in the query which is potentially
-  // expensive unless we precompute (either the IDFs or normalized vector for each doc). 
-  /// However that would make updating the index a much bigger can of worms.
-  // This should provide a nice approximation that will give decent results at least relative to the query, which is all we care about.
+  return score/Math.sqrt(record_vec_sum_sq);
+  // for cosine similarity, we normalize the document vector against the sqrt of the sums of the sqares of all term
+  // we also haven't divided by the magnitude of the query vector, but that is constant across docs
+  // could probably take some shortcuts here w/o too much loss of accuracy
 };
 
-search.getTermIdf = function(coll_name, term) {
+
+search.calcTermIdf = function(coll_name, term) {
   // this currently doesn't have any caching smarts.
   // we could cache the IDF for each doc in the collection, but that would make updating more complicated
   // for the moment I'll gamble on mongodb being quick enough to make it not a problem
@@ -129,6 +141,31 @@ search.getTermIdf = function(coll_name, term) {
   if (term_count === 0) { return 0.0; }
   var num_docs = db[coll_name].find().count(); // TODO: memoize, or find a better method for getting this
   return Math.log(num_docs) - Math.log(term_count);
+};
+
+search.getTermIdf = function(coll_name, term) {
+  var score_record = db.fulltext_term_scores.findOne({collection_name: coll_name, term: term});
+  print("DEBUG: score_record=" + tojson(score_record));
+  if (score_record === null) {
+    print("WARNING: no score cached for term " + term);
+    return 0.0;
+  } else {
+    if (score_record.dirty) {
+      print("WARNING: score for term " + term + " may be incorrect");
+    }
+    return score_record.score;
+  }
+};
+
+search.calcAndStoreTermIdf = function(coll_name, term) {
+  idf_score = search.calcTermIdf(coll_name, term);
+  // print("DEBUG: calculated IDF for term " + term + " as " + idf_score);
+  db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {$set: {score: idf_score, dirty: false}}, {upsert: true});
+};
+
+search.storeEmptyTermIdf = function(coll_name, term) {
+  // adds the term into the index if it's not already there, but marks it as dirty
+  db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {$set: {dirty: true}}, {upsert: true});
 };
 
 search.filterArg = function(coll_name, query_terms, require_all) {
@@ -148,13 +185,37 @@ search.indexAll = function(coll_name) {
   mft.debug_print("indexing all records in " + coll_name);
   var cur = db[coll_name].find();
   indexed_fields = search.indexedFieldsAndWeights(coll_name);
-  mft.debug_print("indexed fields and weights: " + tojson(indexed_fields));
-  cur.forEach(function(x) { search.indexSingleRecord(coll_name, x, indexed_fields); });
+  print("DEBUG: indexed fields and weights: " + tojson(indexed_fields));
+  recs_indexed = 0;
+  search.checkTermScoreIndex(coll_name);
+  cur.forEach(function(x) { 
+    search.indexSingleRecord(coll_name, x, indexed_fields, false); 
+    recs_indexed++;
+    if (recs_indexed % 100 === 0) {
+      print(recs_indexed);
+    }
+  });
+  search.checkExtractedTermIndex(coll_name); // maybe delete this before populating to make it quicker?
+  print("Calculating IDF scores");
+  search.fillDirtyIdfScores(coll_name);
 };
 
-search.indexSingleRecord = function(coll_name, record, indexed_fields) {
-  if (typeof indexed_fields === undefined) {// we can pass this in to save CPU in bulk indexing, but might not
+search.checkTermScoreIndex = function(coll_name) {
+  db.fulltext_term_scores.ensureIndex({collection_name: 1, term: 1});
+};
+
+search.checkExtractedTermIndex = function(coll_name) {
+  ext_terms_idx_criteria = Array();
+  ext_terms_idx_criteria[search.EXTRACTED_TERMS_FIELD] = 1;
+  db[coll_name].ensureIndex(ext_terms_idx_criteria);
+};
+
+search.indexSingleRecord = function(coll_name, record, indexed_fields, calculate_idf) {
+  if (typeof indexed_fields === 'undefined') {// we can pass this in to save CPU in bulk indexing, but might not
     indexed_fields = search.indexedFieldsAndWeights(coll_name);
+  }
+  if (typeof calculate_idf === 'undefined') {
+    calculate_idf = true; // assume we're just indexing this one doc - so we probably want to cal at the time
   }
   var all_extracted_terms = Array();
   for (var field in indexed_fields) {    
@@ -164,7 +225,13 @@ search.indexSingleRecord = function(coll_name, record, indexed_fields) {
   }
   record[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
   // mft.debug_print("record is now: " + tojson(record));
+
   db[coll_name].save(record);
+  if (calculate_idf) { // if we're doing just one doc
+    all_extracted_terms.forEach(function(x) {search.calcAndStoreTermIdf(coll_name, x);});
+  } else { // we're doing it in bulk, so defer calcs until later
+    all_extracted_terms.forEach(function(x) {search.storeEmptyTermIdf(coll_name, x);});
+  }
 };
 
 search.indexSingleRecordFromId = function(coll_name, record_id) {
@@ -172,9 +239,18 @@ search.indexSingleRecordFromId = function(coll_name, record_id) {
   search.indexSingleRecord(coll_name, rec);
 };
 
+search.fillDirtyIdfScores = function(coll_name) {
+  search.checkExtractedTermIndex(coll_name);
+  var cur = db.fulltext_term_scores.find({collection_name: coll_name, dirty: true});
+  cur.forEach( function(x) { search.calcAndStoreTermIdf(coll_name, x.term); });
+};
+
 search.extractFieldTokens = function(coll_name, record, field, upweighting) {
   // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
   var contents = record[field];
+  if (typeof contents == 'object') {
+    contents = contents.join(" ");
+  }
   if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
     return;
   }
@@ -254,7 +330,6 @@ search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
     scores_and_ids_heap.push(x); // in-place would be better, but let's leave that unless we think it would be useful
   });
   this.scores_and_ids_heap = scores_and_ids_heap;
-
   
   this.hasNext = function() {
     return this.scores_and_ids_heap.size() > 0;
