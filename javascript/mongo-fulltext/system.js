@@ -157,12 +157,12 @@ mft.getTermIdf = function(coll_name, term) {
 mft.calcAndStoreTermIdf = function(coll_name, term) {
   idf_score = mft.calcTermIdf(coll_name, term);
   // print("DEBUG: calculated IDF for term " + term + " as " + idf_score);
-  db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {collection_name: coll_name, term: term, score: idf_score, dirty: false}, {upsert: true});
+  db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {$set: {score: idf_score, dirty: false}}, {upsert: true});
 };
 
 mft.storeEmptyTermIdf = function(coll_name, term) {
   // adds the term into the index if it's not already there, but marks it as dirty
-  db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {collection_name: coll_name, term: term, dirty: true}, {upsert: true});
+  db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {$set: {dirty: true}}, {upsert: true});
 };
 
 mft.filterArg = function(coll_name, query_terms, require_all) {
@@ -188,23 +188,24 @@ mft.indexAll = function(coll_name) {
   cur.forEach(function(x) { 
     mft.indexSingleRecord(coll_name, x, indexed_fields, false); 
     recs_indexed++;
-    if (recs_indexed % 100 == 0) {
+    if (recs_indexed % 100 === 0) {
       print(recs_indexed);
     }
   });
   mft.checkExtractedTermIndex(coll_name); // maybe delete this before populating to make it quicker?
+  print("Calculating IDF scores");
   mft.fillDirtyIdfScores(coll_name);
 };
 
 mft.checkTermScoreIndex = function(coll_name) {
   db.fulltext_term_scores.ensureIndex({collection_name: 1, term: 1});
-}
+};
 
 mft.checkExtractedTermIndex = function(coll_name) {
-  ext_terms_idx_criteria = array();
+  ext_terms_idx_criteria = Array();
   ext_terms_idx_criteria[mft.EXTRACTED_TERMS_FIELD] = 1;
   db[coll_name].ensureIndex(ext_terms_idx_criteria);
-}
+};
 
 mft.indexSingleRecord = function(coll_name, record, indexed_fields, calculate_idf) {
   if (typeof indexed_fields === 'undefined') {// we can pass this in to save CPU in bulk indexing, but might not
