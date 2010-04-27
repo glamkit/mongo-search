@@ -108,23 +108,23 @@ mft.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
   }
   print("DEBUG: query_terms_set=" + tojson(query_terms_set));
   var idf_cache = {};
+  var record_vec_sum_sq = 0;
   for (var j = 0; j < record_terms.length; j++) {
     var term = record_terms[j];
+    var term_idf = idf_cache[term];
+    if (term_idf === undefined) {
+      term_idf = mft.getTermIdf(coll_name, term);
+      idf_cache[term] = term_idf;
+    }
     if (term in query_terms_set) {
-      var term_idf = idf_cache[term];
-      if (term_idf === undefined) {
-        term_idf = mft.getTermIdf(coll_name, term);
-        idf_cache[term] = term_idf;
-      }
       score += term_idf;
     }
+    record_vec_sum_sq += term_idf * term_idf;
   }
-  return score/Math.sqrt(record_terms.length);
-  // for cosine similarity, we should be normalizing the document vector against the sqrt of the sums of the sqares of all term
-  // but that would require knowing the IDF scores of all terms, rather than just the ones in the query which is potentially
-  // expensive unless we precompute (either the IDFs or normalized vector for each doc). 
-  /// However that would make updating the index a much bigger can of worms.
-  // This should provide a nice approximation that will give decent results at least relative to the query, which is all we care about.
+  return score/Math.sqrt(record_vec_sum_sq);
+  // for cosine similarity, we normalize the document vector against the sqrt of the sums of the sqares of all term
+  // we also haven't divided by the magnitude of the query vector, but that is constant across docs
+  // could probably take some shortcuts here w/o too much loss of accuracy
 };
 
 mft.calcTermIdf = function(coll_name, term) {
