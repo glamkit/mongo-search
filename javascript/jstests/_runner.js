@@ -11,20 +11,20 @@ if ((typeof TEST_ARGS == 'undefined') || (TEST_ARGS === null)) {
     TEST_ARGS = TEST_ARGS.split(/\s+/);
 }
 
-print('a');
+
 load('mongo-fulltext/_load.js');
-print('b');
+
 
 mft.get('util').setup_tests();
-print('c');
+
 
 var FILE_MATCH_RE = /\/[^_].*\.js$/ ;
 var files = listFiles("jstests");
-print('d');
+
 
 files.forEach(
     function(x) {
-        print('e');
+        
         
         if (!FILE_MATCH_RE.test(x.name)) { 
             print(" >>>>>>>>>>>>>>> skipping " + x.name);

@@ -22,6 +22,8 @@ mft.get = function(name) {
     if (typeof mft._awake[name] == 'undefined') {
         mft._awake[name] = mft._sleeping[name](); 
     };
+    mft.debug_print('woke name '+name);
+    
     return mft._awake[name];
 };
 

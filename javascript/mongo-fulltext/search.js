@@ -1,6 +1,9 @@
 "use strict";
+// mft.DEBUG = true;
 
-var search = function (){    
+var search = function (){
+    
+    
     var search = {
       // CONFIG ITEMS:
 
@@ -16,8 +19,10 @@ var search = function (){
       _STEM_FUNCTION: null,
       _TOKENIZE_FUNCTION: null
     };
-
+    
+    
     search.indexedFieldsAndWeights = function(coll_name) {
+      
       // we expect a special collection named '_fulltext_config', with items having elems 'collection_name', and 'fields',
       // with 'fields' having keys being the field name, and the values being the weight.
       //eg:
@@ -45,7 +50,9 @@ var search = function (){
     };
 
 
+
     search.search = function(coll_name, query_obj) {
+      
       // check for $search member on query_obj
       // if it doesn't exist, pass through to regular .find
       // if it does, parse the ft query string, and add the appropriate filter
@@ -95,12 +102,16 @@ var search = function (){
       // }
       // return scored_records;
     };
+    
 
     search.sortNumericFirstDescending = function(a, b) {
+      
       return b[0] - a[0];
     };
-
+    
+    
     search.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
+      
       var record_terms = record[search.EXTRACTED_TERMS_FIELD];
       mft.debug_print("record=" + record);
       var query_terms_set = {};
@@ -129,8 +140,9 @@ var search = function (){
       // could probably take some shortcuts here w/o too much loss of accuracy
     };
 
-
-    search.calcTermIdf = function(coll_name, term) {
+    search.calcTermIdf = function(coll_name, term) { //or should this be getTermIdf?
+      
+      //
       // this currently doesn't have any caching smarts.
       // we could cache the IDF for each doc in the collection, but that would make updating more complicated
       // for the moment I'll gamble on mongodb being quick enough to make it not a problem
@@ -142,6 +154,7 @@ var search = function (){
       var num_docs = db[coll_name].find().count(); // TODO: memoize, or find a better method for getting this
       return Math.log(num_docs) - Math.log(term_count);
     };
+    
 
     search.getTermIdf = function(coll_name, term) {
       var score_record = db.fulltext_term_scores.findOne({collection_name: coll_name, term: term});
@@ -169,6 +182,7 @@ var search = function (){
     };
 
     search.filterArg = function(coll_name, query_terms, require_all) {
+      
       if (require_all === undefined) {
         require_all = true;
       }
@@ -176,12 +190,16 @@ var search = function (){
       filter_obj[require_all ? '$all' : '$in'] = query_terms;
       return filter_obj;
     };
-
+    
+    
     search.processQueryString = function(query_string) {
+      
       return search.stemAndTokenize(query_string); // maybe tokenizing should be different for queries?
     };
-
+    
+    
     search.indexAll = function(coll_name) {
+      
       mft.debug_print("indexing all records in " + coll_name);
       var cur = db[coll_name].find();
       indexed_fields = search.indexedFieldsAndWeights(coll_name);
@@ -212,6 +230,7 @@ var search = function (){
 
     search.indexSingleRecord = function(coll_name, record, indexed_fields, calculate_idf) {
       if (typeof indexed_fields === 'undefined') {// we can pass this in to save CPU in bulk indexing, but might not
+
         indexed_fields = search.indexedFieldsAndWeights(coll_name);
       }
       if (typeof calculate_idf === 'undefined') {
@@ -233,8 +252,10 @@ var search = function (){
         all_extracted_terms.forEach(function(x) {search.storeEmptyTermIdf(coll_name, x);});
       }
     };
-
+    
+    
     search.indexSingleRecordFromId = function(coll_name, record_id) {
+      
       var rec = db[coll_name].findOne({'_id': record_id});
       search.indexSingleRecord(coll_name, rec);
     };
@@ -246,6 +267,7 @@ var search = function (){
     };
 
     search.extractFieldTokens = function(coll_name, record, field, upweighting) {
+      
       // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
       var contents = record[field];
       if (typeof contents == 'object') {
@@ -265,17 +287,22 @@ var search = function (){
         return upweighted_contents; // this upweighting shouldn't damage our scores as long as we TF IDF, since IDF won't be affect by linear multipliers
       }
     };
-
+    
+    
     search.stemAndTokenize = function(field_contents) {
+      
       return search.stem(search.tokenize(field_contents.toLowerCase())); //TODO: actually stem as promised
     };
 
     search.tokenizeBasic = function(field_contents) {
+      
       var token_re = /\b(\w[\w'-]*\w|\w)\b/g;
       return field_contents.match(token_re);
     };
-
-    search.stem = function(field_tokens) {  
+    
+    
+    search.stem = function(field_tokens) {
+        
       var stem_fn = search.getStemFunction();
       var stemmed = Array();
       for (var i = 0; i < field_tokens.length; i++) {
@@ -285,11 +312,13 @@ var search = function (){
     };
 
     search.tokenize = function(field_contents) {
+      
       var tokenize_fn = search.getTokenizeFunction();
       return tokenize_fn(field_contents);
     };
 
     search.getStemFunction = function() {
+      
       if (search._STEM_FUNCTION) {
         return search._STEM_FUNCTION;
       } else {
@@ -306,6 +335,7 @@ var search = function (){
     };
 
     search.getTokenizeFunction = function() {
+      
       if (search._TOKENIZE_FUNCTION) {
         return search._TOKENIZE_FUNCTION;
       } else {
@@ -315,13 +345,17 @@ var search = function (){
       }  
     };
 
+
+
     search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
+      
       // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
       // memory, and not taking lots of time to sort results we may not need - hence the heap
       this.coll_name = coll_name;
       // fetch the BinaryHeap constructor on a separate line for clarity
-  
+      
       var BinaryHeap = mft.get('BinaryHeap');
+      
       var scores_and_ids_heap = new BinaryHeap(function(x) { return -x[0] });
   
       // mft.debug_print("score function running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
@@ -329,15 +363,16 @@ var search = function (){
         scores_and_ids_heap.push(x); // in-place would be better, but let's leave that unless we think it would be useful
       });
       this.scores_and_ids_heap = scores_and_ids_heap;
-  
+
+
       this.hasNext = function() {
         return this.scores_and_ids_heap.size() > 0;
       };
-  
+      
       this.next = function() {
         return this.fetchScoredRecord(this.scores_and_ids_heap.pop());
       };
-  
+      
       //ATM this doesn't get called...
       //db.eval("return tojson(mftsearch.search('search_works', {$search: 'fish'}).toArray());");
       //returns a non-array (appears to be a 
@@ -348,18 +383,18 @@ var search = function (){
         }
         return output;
       };
-  
+      
       this.fetchById = function(record_id) {
         return db[this.coll_name].findOne({_id: record_id});
       };
-  
+      
       this.fetchScoredRecord = function(score_and_id) {
         rec = this.fetchById(score_and_id[1]);
         rec.score = score_and_id[0];
         return rec;
       };
-
     };
+    
     return search;
 };
 
