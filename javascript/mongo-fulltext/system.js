@@ -184,6 +184,7 @@ mft.indexAll = function(coll_name) {
   indexed_fields = mft.indexedFieldsAndWeights(coll_name);
   print("DEBUG: indexed fields and weights: " + tojson(indexed_fields));
   recs_indexed = 0;
+  mft.checkTermScoreIndex(coll_name);
   cur.forEach(function(x) { 
     mft.indexSingleRecord(coll_name, x, indexed_fields, false); 
     recs_indexed++;
@@ -191,8 +192,19 @@ mft.indexAll = function(coll_name) {
       print(recs_indexed);
     }
   });
+  mft.checkExtractedTermIndex(coll_name); // maybe delete this before populating to make it quicker?
   mft.fillDirtyIdfScores(coll_name);
 };
+
+mft.checkTermScoreIndex = function(coll_name) {
+  db.fulltext_term_scores.ensureIndex({collection_name: 1, term: 1});
+}
+
+mft.checkExtractedTermIndex = function(coll_name) {
+  ext_terms_idx_criteria = array();
+  ext_terms_idx_criteria[mft.EXTRACTED_TERMS_FIELD] = 1;
+  db[coll_name].ensureIndex(ext_terms_idx_criteria);
+}
 
 mft.indexSingleRecord = function(coll_name, record, indexed_fields, calculate_idf) {
   if (typeof indexed_fields === 'undefined') {// we can pass this in to save CPU in bulk indexing, but might not
@@ -221,6 +233,7 @@ mft.indexSingleRecordFromId = function(coll_name, record_id) {
 };
 
 mft.fillDirtyIdfScores = function(coll_name) {
+  mft.checkExtractedTermIndex(coll_name);
   var cur = db.fulltext_term_scores.find({collection_name: coll_name, dirty: true});
   cur.forEach( function(x) { mft.calcAndStoreTermIdf(coll_name, x.term); });
 };
