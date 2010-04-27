@@ -156,13 +156,12 @@ mft.getTermIdf = function(coll_name, term) {
 
 mft.calcAndStoreTermIdf = function(coll_name, term) {
   idf_score = mft.calcTermIdf(coll_name, term);
-  print("DEBUG: calculated IDF for term " + term + " as " + idf_score);
+  // print("DEBUG: calculated IDF for term " + term + " as " + idf_score);
   db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {collection_name: coll_name, term: term, score: idf_score, dirty: false}, {upsert: true});
 };
 
 mft.storeEmptyTermIdf = function(coll_name, term) {
   // adds the term into the index if it's not already there, but marks it as dirty
-  print("DEBUG: storing empty score for term " + term);
   db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {collection_name: coll_name, term: term, dirty: true}, {upsert: true});
 };
 
@@ -184,7 +183,14 @@ mft.indexAll = function(coll_name) {
   var cur = db[coll_name].find();
   indexed_fields = mft.indexedFieldsAndWeights(coll_name);
   print("DEBUG: indexed fields and weights: " + tojson(indexed_fields));
-  cur.forEach(function(x) { mft.indexSingleRecord(coll_name, x, indexed_fields, false); });
+  recs_indexed = 0;
+  cur.forEach(function(x) { 
+    mft.indexSingleRecord(coll_name, x, indexed_fields, false); 
+    recs_indexed++;
+    if (recs_indexed % 100 == 0) {
+      print(recs_indexed);
+    }
+  });
   mft.fillDirtyIdfScores(coll_name);
 };
 
@@ -200,7 +206,7 @@ mft.indexSingleRecord = function(coll_name, record, indexed_fields, calculate_id
     all_extracted_terms = all_extracted_terms.concat(mft.extractFieldTokens(coll_name, record, field, indexed_fields[field]));
   }
   record[mft.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
-  print("DEBUG: record is now: " + tojson(record));
+  // print("DEBUG: record is now: " + tojson(record));
   db[coll_name].save(record);
   if (calculate_idf) { // if we're doing just one doc
     all_extracted_terms.forEach(function(x) {mft.calcAndStoreTermIdf(coll_name, x);});
@@ -225,7 +231,6 @@ mft.extractFieldTokens = function(coll_name, record, field, upweighting) {
   if (typeof contents == 'object') {
     contents = contents.join(" ");
   }
-  print("DEBUG: contents for field " + field + ": " + contents);
   if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
     return;
   }
