@@ -121,7 +121,6 @@ mft.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
     }
     record_vec_sum_sq += term_idf * term_idf;
   }
-  print("DEBUG: score=" + score + "; sum rec vec terms= " + record_vec_sum_sq);
   return score/Math.sqrt(record_vec_sum_sq);
   // for cosine similarity, we normalize the document vector against the sqrt of the sums of the sqares of all term
   // we also haven't divided by the magnitude of the query vector, but that is constant across docs
