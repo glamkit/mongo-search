@@ -22,17 +22,35 @@ var search = function (){
     };
     
     search.indexMap = function() {
-        // var search=mft.get('search');
-        // search.indexSingleRecord(coll_name, x, indexed_fields, false);
-        var word_array = [];
-        this._extracted_terms = word_array;
+        mft.debug_print('executing indexMap with');        
+        mft.debug_print(this);
+        mft.debug_print('indexed fields: ' + tojson(indexed_fields));
+        var search=mft.get('search');
+        var all_extracted_terms = Array();
+        for (var field in indexed_fields) {
+            mft.debug_print('field:');        
+            mft.debug_print(field);        
+            all_extracted_terms = Array.concat(all_extracted_terms,
+              search.extractFieldTokensFromRecord(this, field, indexed_fields[field])
+            );
+        };
+        mft.debug_print('extracted terms');        
+        mft.debug_print(all_extracted_terms);
+        this._extracted_terms = all_extracted_terms;
         emit(this._id, this);
     };
     search.indexReduce = function(key, valueArray) {
-        var all_words_array = [];
+        mft.debug_print('executing indexReduce for key');        
+        mft.debug_print(key);
+        mft.debug_print('and values');        
+        mft.debug_print(valueArray);
+        
+        var all_words_array = Array();
         valueArray.forEach(function(doc) {
-          all_words_array.concat(doc._extracted_terms || []);
+          all_words_array = all_words_array.concat(doc._extracted_terms || []);
         });
+        mft.debug_print('extracted terms');        
+        mft.debug_print(all_words_array);
         var doc = valueArray[0];
         doc._extracted_terms = all_words_array
         return doc;
@@ -75,13 +93,18 @@ var search = function (){
         // full_text_index a given coll
         // you probably don't want to call this server side before checking
         // if it's a blocking call
+        var search = mft.get('search'); //not guaranteed to have been done!
+                
         db[coll_name].ensureIndex({_extracted_terms:1}, {background:true});
         var res = db.runCommand(
-         { mapreduce : coll_name,
-           map : search.indexMap,
-           reduce : search.indexReduce,
-           out : coll_name,
-           verbose : true
+          { mapreduce : coll_name,
+            map : search.indexMap,
+            reduce : search.indexReduce,
+            out : coll_name,
+            verbose : true,
+            scope: {
+                indexed_fields: search.indexedFieldsAndWeights(coll_name),
+            }
          }
         );
         mft.debug_print(res);
@@ -358,6 +381,12 @@ var search = function (){
       cur.forEach( function(x) { search.calcAndStoreTermIdf(coll_name, x.term); });
     };
 
+    search.extractFieldTokensFromRecord = function(record, field, upweighting) {
+        //not sure why coll_name gets passed in to extractFieldTokens
+        //so don't mess with that 
+        return search.extractFieldTokens('', record, field, upweighting);
+    };
+    
     search.extractFieldTokens = function(coll_name, record, field, upweighting) {
       
       // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary

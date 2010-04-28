@@ -16,7 +16,7 @@ var conf = db.fulltext_config
 conf.insert({'collection_name' : 'fulltext_index_creation', 'fields': {'title': 5, 'content': 1}});
 
 // TODO: add index on collection name (should we have an _id attribute too?)
-db.eval("mftsearch.indexAll('fulltext_index_creation');");
+db.eval("mftsearch.mapReduceIndex('fulltext_index_creation');");
 
 assert.eq(s.find().toArray(), [
   { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory", "_extracted_terms" : [ "fish", "fish", "fish", "fish", "fish", "grouper", "like", "john", "dori"
@@ -24,4 +24,4 @@ assert.eq(s.find().toArray(), [
   { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels", "_extracted_terms" : [ "dog", "dog", "dog", "dog", "dog", "whippet", "kick", "mongrel" ] },
   { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers", "_extracted_terms" : [ "dog", "fish", "dog", "fish", "dog", "fish", "dog", "fish", "dog", "fish", "whippet", "kick", "grouper"
   ] }
-])
+], 'index_works')
