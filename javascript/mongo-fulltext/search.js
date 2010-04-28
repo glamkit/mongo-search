@@ -17,7 +17,7 @@ var search = function (){
   
       // WORKHORSE VARS:
       _STEM_FUNCTION: null,
-      _TOKENIZE_FUNCTION: null
+      _TOKENIZE_FUNCTION: null,
       FULL_VECTOR_NORM: false // whether to calculate all the doc vector components and normalise properly, or just guess that they're 1
         // saves time if we don't have precomputed vectors, but doesn't get quite the same results
     };
@@ -128,11 +128,11 @@ var search = function (){
       var getCachedTermIdf = function(x) {
         var term_idf = idf_cache[term];
         if (term_idf === undefined) {
-          term_idf = mft.getTermIdf(coll_name, term);
+          term_idf = search.getTermIdf(coll_name, term);
           idf_cache[term] = term_idf;
         }
         return term_idf;
-      }
+      };
       for (var j = 0; j < record_terms.length; j++) {
         var term = record_terms[j];
         var term_in_query = (term in query_terms_set);
@@ -169,7 +169,7 @@ var search = function (){
 
     search.getTermIdf = function(coll_name, term) {
       var score_record = db.fulltext_term_scores.findOne({collection_name: coll_name, term: term});
-      print("DEBUG: score_record=" + tojson(score_record));
+      mft.print_debug("score_record=" + tojson(score_record));
       if (score_record === null) {
         print("WARNING: no score cached for term " + term);
         return 0.0;
@@ -367,7 +367,7 @@ var search = function (){
       
       var BinaryHeap = mft.get('BinaryHeap');
       
-      var scores_and_ids_heap = new BinaryHeap(function(x) { return -x[0] });
+      var scores_and_ids_heap = new BinaryHeap(function(x) { return -x[0]; });
   
       // mft.debug_print("score function running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
       scores_and_ids.forEach( function(x) {
