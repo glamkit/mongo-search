@@ -37,8 +37,9 @@ var search = function (){
         }
         mft.debug_print('extracted terms');        
         mft.debug_print(all_extracted_terms);
-        this._extracted_terms = all_extracted_terms;
-        emit(this._id, this);
+        var res = {};
+        res[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
+        emit(this._id, res);
     };
     
     search.indexReduce = function(key, valueArray) {
@@ -46,15 +47,17 @@ var search = function (){
         mft.debug_print(key);
         mft.debug_print('and values');        
         mft.debug_print(valueArray);
-        
+        var extracted_terms_field = mft.get('search').EXTRACTED_TERMS_FIELD;
         var all_words_array = [];
         valueArray.forEach(function(doc) {
-          all_words_array = all_words_array.concat(doc._extracted_terms || []);
+          all_words_array = all_words_array.concat(
+              doc[extracted_terms_field] || []
+          );
         });
         mft.debug_print('extracted terms');        
         mft.debug_print(all_words_array);
         var doc = {};
-        doc[mft.get('search').EXTRACTED_TERMS_FIELD] = all_words_array;
+        doc[extracted_terms_field] = all_words_array;
         return doc;
     };
     search.searchMap = function() {
