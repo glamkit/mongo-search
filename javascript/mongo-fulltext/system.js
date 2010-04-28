@@ -13,7 +13,10 @@ mft = {
   
   // WORKHORSE VARS:
   _STEM_FUNCTION: null,
-  _TOKENIZE_FUNCTION: null
+  _TOKENIZE_FUNCTION: null,
+  
+  FULL_VECTOR_NORM: false // whether to calculate all the doc vector components and normalise properly, or just guess that they're 1
+    // saves time if we don't have precomputed vectors, but doesn't get quite the same results
 };
 
 mft.indexedFieldsAndWeights = function(coll_name) {
@@ -100,26 +103,34 @@ mft.sortNumericFirstDescending = function(a, b) {
 
 mft.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
   var record_terms = record[mft.EXTRACTED_TERMS_FIELD];
-  print("DEBUG: record=" + record);
+  // print("DEBUG: record=" + record);
   var query_terms_set = {};
   var score = 0.0;
   for (var i = 0; i < query_terms.length; i++) {
     query_terms_set[query_terms[i]] = true; // to avoid needing to iterate
   }
-  print("DEBUG: query_terms_set=" + tojson(query_terms_set));
+  // print("DEBUG: query_terms_set=" + tojson(query_terms_set));
   var idf_cache = {};
   var record_vec_sum_sq = 0;
-  for (var j = 0; j < record_terms.length; j++) {
-    var term = record_terms[j];
+  var getCachedTermIdf = function(x) {
     var term_idf = idf_cache[term];
     if (term_idf === undefined) {
       term_idf = mft.getTermIdf(coll_name, term);
       idf_cache[term] = term_idf;
     }
-    if (term in query_terms_set) {
+    return term_idf;
+  }
+  for (var j = 0; j < record_terms.length; j++) {
+    var term = record_terms[j];
+    var term_in_query = (term in query_terms_set);
+    var term_idf = 0;
+    if (term_in_query || mft.FULL_VECTOR_NORM) {
+      term_idf = getCachedTermIdf(term);
+    }
+    if (term_in_query) {
       score += term_idf;
     }
-    record_vec_sum_sq += term_idf * term_idf;
+    record_vec_sum_sq += mft.FULL_VECTOR_NORM ? term_idf * term_idf : 1.0;
   }
   return score/Math.sqrt(record_vec_sum_sq);
   // for cosine similarity, we normalize the document vector against the sqrt of the sums of the sqares of all term
@@ -142,7 +153,7 @@ mft.calcTermIdf = function(coll_name, term) {
 
 mft.getTermIdf = function(coll_name, term) {
   var score_record = db.fulltext_term_scores.findOne({collection_name: coll_name, term: term});
-  print("DEBUG: score_record=" + tojson(score_record));
+  // print("DEBUG: score_record=" + tojson(score_record));
   if (score_record === null) {
     print("WARNING: no score cached for term " + term);
     return 0.0;
