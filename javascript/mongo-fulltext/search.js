@@ -3,8 +3,6 @@ mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
-    
-    
     var search = {
       // CONFIG ITEMS:
 
@@ -12,6 +10,7 @@ var search = function (){
       TOKENIZING: 'basic',// doesn't do anything yet
 
       EXTRACTED_TERMS_FIELD: '_extracted_terms',
+      INDEX_SUFFIX: '__fulltext',
       SEARCH_ALL_PSEUDO_FIELD: '$search', // magic "field name" that specifies we want a fulltext search 
                 // (abusing the '$' notation somewhat, which is often for search operators)
       SEARCH_ANY_PSEUDO_FIELD: '$searchany', // magic "field name" that specifies we want a fulltext search matching any, not all
@@ -31,30 +30,31 @@ var search = function (){
             mft.debug_print('field:');        
             mft.debug_print(field);        
             all_extracted_terms = Array.concat(all_extracted_terms,
-              search.extractFieldTokensFromRecord(this, field, indexed_fields[field])
+                search.extractFieldTokensFromRecord(
+                    this, field, indexed_fields[field]
+                )
             );
-        };
+        }
         mft.debug_print('extracted terms');        
         mft.debug_print(all_extracted_terms);
         this._extracted_terms = all_extracted_terms;
         emit(this._id, this);
     };
+    
     search.indexReduce = function(key, valueArray) {
         mft.debug_print('executing indexReduce for key');        
         mft.debug_print(key);
         mft.debug_print('and values');        
         mft.debug_print(valueArray);
         
-        var all_words_array = new Array();
+        var all_words_array = [];
         valueArray.forEach(function(doc) {
           all_words_array = all_words_array.concat(doc._extracted_terms || []);
         });
         mft.debug_print('extracted terms');        
         mft.debug_print(all_words_array);
-        var doc = valueArray[0];
-        doc._extracted_terms = all_words_array
-        mft.debug_print('resulting doc');        
-        mft.debug_print(doc);
+        var doc = {};
+        doc[mft.get('search').EXTRACTED_TERMS_FIELD] = all_words_array;
         return doc;
     };
     search.searchMap = function() {
@@ -97,24 +97,30 @@ var search = function (){
         // you probably don't want to call this server side before checking
         // if it's a blocking call
         var search = mft.get('search'); //not guaranteed to have been done!
+        var index_coll_name = search.indexName(coll_name)
         var res = db.runCommand(
           { mapreduce : coll_name,
             map : search.indexMap,
             reduce : search.indexReduce,
-            out : coll_name,
+            out : index_coll_name,
             verbose : true,
             scope: {
                 indexed_fields: search.indexedFieldsAndWeights(coll_name),
             }
          }
         );
-        //db[fulltext_index_coll_name].ensureIndex({_extracted_terms:1}, {background:true});
+        //db[fulltext_index_coll_name].ensureIndex({("value." + search.EXTRACTED_TERMS_FIELD) :1}, {background:true});
         mft.debug_print(res);
     };
     search.mapReduceSearch = function(coll_name, query_obj) {
         //search a given coll, assuming it's been indexed
         // return a (temporary?) coll name containing the sorted results
     };
+    
+    search.indexName = function(coll_name) {
+        var search = mft.get('search'); //not guaranteed to have been done!
+        return coll_name + search.INDEX_SUFFIX;
+    }
     
     search.indexedFieldsAndWeights = function(coll_name) {
       
