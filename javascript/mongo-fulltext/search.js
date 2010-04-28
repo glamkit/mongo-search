@@ -18,13 +18,78 @@ var search = function (){
   
       // WORKHORSE VARS:
       _STEM_FUNCTION: null,
-      _TOKENIZE_FUNCTION: null,
+      _TOKENIZE_FUNCTION: null
     };
     
-    search.indexMap = function() {}
-    search.indexReduce = function() {}
-    search.searchMap = function() {}
-    search.searchReduce = function() {}
+    search.indexMap = function() {
+        // var search=mft.get('search');
+        // search.indexSingleRecord(coll_name, x, indexed_fields, false);
+        var word_array = [];
+        this._extracted_terms = word_array;
+        emit(this._id, this);
+    };
+    search.indexReduce = function(key, valueArray) {
+        var all_words_array = [];
+        valueArray.forEach(function(doc) {
+          all_words_array.concat(doc._extracted_terms || []);
+        });
+        var doc = valueArray[0];
+        doc._extracted_terms = all_words_array
+        return doc;
+    };
+    search.searchMap = function() {
+      emit(key,value);
+    };
+    search.searchReduce = function(key, valueArray) {
+      return value;
+    };
+    
+    // call syntax: (the db.mapReduce helper is not on the server)
+    // db.runCommand(
+    //  { mapreduce : <collection>,
+    //    map : <mapfunction>,
+    //    reduce : <reducefunction>
+    //    [, query : <query filter object>]
+    //    [, sort : <sort the query.  useful for optimization>]
+    //    [, limit : <number of objects to return from collection>]
+    //    [, out : <output-collection name>]
+    //    [, keeptemp: <true|false>]
+    //    [, finalize : <finalizefunction>]
+    //    [, scope : <object where fields go into javascript global scope >]
+    //    [, verbose : true]
+    //  }
+    // );
+    
+    // return object:
+    // { result : <collection_name>,
+    //       counts : {
+    //            input :  <number of objects scanned>,
+    //            emit  : <number of times emit was called>,
+    //            output : <number of items in output collection>
+    //       } ,
+    //       timeMillis : <job_time>,
+    //       ok : <1_if_ok>,
+    //       [, err : <errmsg_if_error>]
+    //     }
+    search.mapReduceIndex = function(coll_name) {
+        // full_text_index a given coll
+        // you probably don't want to call this server side before checking
+        // if it's a blocking call
+        db[coll_name].ensureIndex({_extracted_terms:1}, {background:true});
+        var res = db.runCommand(
+         { mapreduce : coll_name,
+           map : search.indexMap,
+           reduce : search.indexReduce,
+           out : coll_name,
+           verbose : true
+         }
+        );
+        mft.debug_print(res);
+    };
+    search.mapReduceSearch = function(coll_name, query_obj) {
+        //search a given coll, assuming it's been indexed
+        // return a (temporary?) coll name containing the sorted results
+    };
     
     search.indexedFieldsAndWeights = function(coll_name) {
       
@@ -63,7 +128,7 @@ var search = function (){
       collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
       mft.debug_print("retrieved config: " + tojson(collection_conf));
       return collection_conf.params;
-    }
+    };
 
 
 
