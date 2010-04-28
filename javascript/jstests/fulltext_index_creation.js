@@ -1,5 +1,5 @@
 load('mongo-fulltext/_load.js');
-var s = db.index_creation;
+var s = db.fulltext_index_creation;
 s.drop();
 
 var fixture = [
@@ -8,15 +8,15 @@ var fixture = [
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers" }
 ]
 
-mft.get('util').load_records_from_list(fixture, 'index_creation');
+mft.get('util').load_records_from_list(fixture, 'fulltext_index_creation');
 db.eval("mftsearch = mft.get('search');");
 
 var result ;
 var conf = db.fulltext_config
-conf.insert({'collection_name' : 'index_creation', 'fields': {'title': 5, 'content': 1}});
+conf.insert({'collection_name' : 'fulltext_index_creation', 'fields': {'title': 5, 'content': 1}});
 
 // TODO: add index on collection name (should we have an _id attribute too?)
-db.eval("mftsearch.indexAll('index_creation');");
+db.eval("mftsearch.indexAll('fulltext_index_creation');");
 
 assert.eq(s.find().toArray(), [
   { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory", "_extracted_terms" : [ "fish", "fish", "fish", "fish", "fish", "grouper", "like", "john", "dori"
