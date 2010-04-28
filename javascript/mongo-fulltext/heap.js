@@ -129,7 +129,7 @@ function BinaryHeapClosure() {
     };
     
     return BinaryHeap;
-};
+}
 
 _all = {
   BinaryHeap: BinaryHeapClosure

@@ -6,13 +6,13 @@ var fixture = [
     { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory" },
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels" },
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers" }
-]
+];
 
 mft.get('util').load_records_from_list(fixture, 'search_works');
 db.eval("mftsearch = mft.get('search');");
 
 var result ;
-var conf = db.fulltext_config
+var conf = db.fulltext_config;
 conf.insert({'collection_name' : 'search_works', 'fields': {'title': 5, 'content': 1}});
 
 
@@ -21,7 +21,69 @@ db.eval("mftsearch.indexAll('search_works');");
 result = db.eval("return mftsearch.search('search_works', {$search: 'fish'}).toArray();");
 // print("Search result for fish: " + tojson(result));
 
-assert.eq(result, [
+
+FULL_VECTOR_NORM = mft.get('search').search.FULL_VECTOR_NORM;
+
+if (FULL_VECTOR_NORM) {
+    assert.eq(result, [
+            {
+                    "_id" : 3,
+                    "title" : "dogs & fish",
+                    "content" : "whippets kick groupers",
+                    "_extracted_terms" : [
+                            "dog",
+                            "fish",
+                            "dog",
+                            "fish",
+                            "dog",
+                            "fish",
+                            "dog",
+                            "fish",
+                            "dog",
+                            "fish",
+                            "whippet",
+                            "kick",
+                            "grouper"
+                    ],
+                    "score" : 1.3867504905630728
+            },
+            {
+                    "_id" : 1,
+                    "title" : "fish",
+                    "content" : "groupers like John Dory",
+                    "_extracted_terms" : [
+                            "fish",
+                            "fish",
+                            "fish",
+                            "fish",
+                            "fish",
+                            "grouper",
+                            "like",
+                            "john",
+                            "dori"
+                    ],
+                    "score" : 0.9445005099847485
+            }
+    ]);
+} else {
+    assert.eq(result, [
+        {
+                "_id" : 1,
+                "title" : "fish",
+                "content" : "groupers like John Dory",
+                "_extracted_terms" : [
+                        "fish",
+                        "fish",
+                        "fish",
+                        "fish",
+                        "fish",
+                        "grouper",
+                        "like",
+                        "john",
+                        "dori"
+                ],
+                "score" : 0.6757751801802742
+        },
         {
                 "_id" : 3,
                 "title" : "dogs & fish",
@@ -41,27 +103,14 @@ assert.eq(result, [
                         "kick",
                         "grouper"
                 ],
-                "score" : 1.3867504905630728
-        },
-        {
-                "_id" : 1,
-                "title" : "fish",
-                "content" : "groupers like John Dory",
-                "_extracted_terms" : [
-                        "fish",
-                        "fish",
-                        "fish",
-                        "fish",
-                        "fish",
-                        "grouper",
-                        "like",
-                        "john",
-                        "dori"
-                ],
-                "score" : 0.9445005099847485
+                "score" : 0.5622789375752065
         }
-]);
-result = db.eval("return mftsearch.search('search_works', {$search: 'Dory'})").toArray();
+  ]);
+}
+
+
+
+result = db.eval("return mftsearch.search('search_works', {$search: 'Dory'}).toArray()");
 // print("Search result for Dory: " + tojson(result));
 assert.eq(result, [
         {
