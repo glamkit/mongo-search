@@ -97,7 +97,7 @@ var search = function (){
         // you probably don't want to call this server side before checking
         // if it's a blocking call
         var search = mft.get('search'); //not guaranteed to have been done!
-        var index_coll_name = search.indexName(coll_name)
+        var index_coll_name = search.indexName(coll_name);
         var res = db.runCommand(
           { mapreduce : coll_name,
             map : search.indexMap,
@@ -105,11 +105,16 @@ var search = function (){
             out : index_coll_name,
             verbose : true,
             scope: {
-                indexed_fields: search.indexedFieldsAndWeights(coll_name),
+                indexed_fields: search.indexedFieldsAndWeights(coll_name)
             }
          }
         );
-        //db[fulltext_index_coll_name].ensureIndex({("value." + search.EXTRACTED_TERMS_FIELD) :1}, {background:true});
+        var indexes_required = {};
+        indexes_required[("value." + search.EXTRACTED_TERMS_FIELD)] =1;
+        db[index_coll_name].ensureIndex(
+            indexes_required,
+            {background:true}
+        );
         mft.debug_print(res);
     };
     search.mapReduceSearch = function(coll_name, query_obj) {
@@ -120,7 +125,7 @@ var search = function (){
     search.indexName = function(coll_name) {
         var search = mft.get('search'); //not guaranteed to have been done!
         return coll_name + search.INDEX_SUFFIX;
-    }
+    };
     
     search.indexedFieldsAndWeights = function(coll_name) {
       
