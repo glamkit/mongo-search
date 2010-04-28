@@ -21,6 +21,7 @@ var search = function (){
     };
     
     search.indexMap = function() {
+        //note `this` is bound to a document from the db, not the namespace object
         mft.debug_print('executing indexMap with');        
         mft.debug_print(this);
         mft.debug_print('indexed fields: ' + tojson(indexed_fields));
