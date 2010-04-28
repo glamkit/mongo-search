@@ -26,21 +26,18 @@ var search = function (){
         mft.debug_print(this);
         mft.debug_print('indexed fields: ' + tojson(indexed_fields));
         var search=mft.get('search');
-        var all_extracted_terms = Array();
+        var res = {};
         for (var field in indexed_fields) {
             mft.debug_print('field:');        
-            mft.debug_print(field);        
-            all_extracted_terms = Array.concat(all_extracted_terms,
-                search.extractFieldTokensFromRecord(
-                    this, field, indexed_fields[field]
-                )
+            mft.debug_print(field);
+            res = {};
+            res[search.EXTRACTED_TERMS_FIELD] =  search.extractFieldTokensFromRecord(
+                this, field, indexed_fields[field]
             );
+            mft.debug_print('extracted terms');        
+            mft.debug_print(res);
+            emit(this._id, res);
         }
-        mft.debug_print('extracted terms');        
-        mft.debug_print(all_extracted_terms);
-        var res = {};
-        res[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
-        emit(this._id, res);
     };
     
     search.indexReduce = function(key, valueArray) {
