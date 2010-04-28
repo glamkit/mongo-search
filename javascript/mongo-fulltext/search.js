@@ -1,5 +1,5 @@
 "use strict";
-// mft.DEBUG = true;
+mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -19,14 +19,12 @@ var search = function (){
       // WORKHORSE VARS:
       _STEM_FUNCTION: null,
       _TOKENIZE_FUNCTION: null,
-      FULL_VECTOR_NORM: false // whether to calculate all the doc vector components and normalise properly, or just guess that they're 1
-        // saves time if we don't have precomputed vectors, but doesn't get quite the same results
     };
     
     
     search.indexedFieldsAndWeights = function(coll_name) {
       
-      // we expect a special collection named '_fulltext_config', with items having elems 'collection_name', and 'fields',
+      // we expect a special collection named '_fulltext_config', with items having elems 'collection_name', 'fields', and 'params'
       // with 'fields' having keys being the field name, and the values being the weight.
       //eg:
           // {
@@ -35,6 +33,7 @@ var search = function (){
           //     title: 5,
           //     content: 1
           //   }
+          //   params: { }
           // }
   
       //> fc = {collection_name: 'gallery_collection_items', fields: {'title': 10, 'further_information': 1}}// 
@@ -44,13 +43,23 @@ var search = function (){
       //                 "title" : 10,
       //                 "further_information" : 1
       //         }
+      //         "params": {
+      //            "full_vector_norm": 0
+      //        }
       // }
       // > db.fulltext_config.save(fc)
       // >
-
+      // full_vector_norm is whether to calculate all the doc vector components and normalise properly, or just guess that they're 1
+        // saves time if we don't have precomputed vectors, but doesn't get quite the same results
       collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
       return collection_conf.fields;
     };
+    
+    search.getParams = function(coll_name) {
+      collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
+      mft.debug_print("retrieved config: " + tojson(collection_conf));
+      return collection_conf.params;
+    }
 
 
 
@@ -126,6 +135,8 @@ var search = function (){
 
       var idf_cache = {};
       var record_vec_sum_sq = 0;
+      var full_vector_norm = search.getParams(coll_name).full_vector_norm;
+      
       var getCachedTermIdf = function(x) {
         var term_idf = idf_cache[term];
         if (term_idf === undefined) {
@@ -138,13 +149,13 @@ var search = function (){
         var term = record_terms[j];
         var term_in_query = (term in query_terms_set);
         var term_idf = 0;
-        if (term_in_query || search.FULL_VECTOR_NORM) {
+        if (term_in_query || full_vector_norm) {
           term_idf = getCachedTermIdf(term);
         }
         if (term_in_query) {
           score += term_idf;
         }
-        record_vec_sum_sq += search.FULL_VECTOR_NORM ? term_idf * term_idf : 1.0;
+        record_vec_sum_sq += full_vector_norm ? term_idf * term_idf : 1.0;
       }
       return score/Math.sqrt(record_vec_sum_sq);
       // for cosine similarity, we normalize the document vector against the sqrt of the sums of the sqares of all term
@@ -215,7 +226,7 @@ var search = function (){
       mft.debug_print("indexing all records in " + coll_name);
       var cur = db[coll_name].find();
       indexed_fields = search.indexedFieldsAndWeights(coll_name);
-      print("DEBUG: indexed fields and weights: " + tojson(indexed_fields));
+      mft.debug_print("indexed fields and weights: " + tojson(indexed_fields));
       recs_indexed = 0;
       search.checkTermScoreIndex(coll_name);
       cur.forEach(function(x) { 
@@ -226,7 +237,7 @@ var search = function (){
         }
       });
       search.checkExtractedTermIndex(coll_name); // maybe delete this before populating to make it quicker?
-      print("Calculating IDF scores");
+      mft.debug_print("Calculating IDF scores");
       search.fillDirtyIdfScores(coll_name);
     };
 
