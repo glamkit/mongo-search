@@ -45,7 +45,7 @@ var search = function (){
         mft.debug_print('and values');        
         mft.debug_print(valueArray);
         
-        var all_words_array = Array();
+        var all_words_array = new Array();
         valueArray.forEach(function(doc) {
           all_words_array = all_words_array.concat(doc._extracted_terms || []);
         });
@@ -53,6 +53,8 @@ var search = function (){
         mft.debug_print(all_words_array);
         var doc = valueArray[0];
         doc._extracted_terms = all_words_array
+        mft.debug_print('resulting doc');        
+        mft.debug_print(doc);
         return doc;
     };
     search.searchMap = function() {
@@ -89,13 +91,12 @@ var search = function (){
     //       ok : <1_if_ok>,
     //       [, err : <errmsg_if_error>]
     //     }
+    
     search.mapReduceIndex = function(coll_name) {
         // full_text_index a given coll
         // you probably don't want to call this server side before checking
         // if it's a blocking call
         var search = mft.get('search'); //not guaranteed to have been done!
-                
-        db[coll_name].ensureIndex({_extracted_terms:1}, {background:true});
         var res = db.runCommand(
           { mapreduce : coll_name,
             map : search.indexMap,
@@ -107,6 +108,7 @@ var search = function (){
             }
          }
         );
+        //db[fulltext_index_coll_name].ensureIndex({_extracted_terms:1}, {background:true});
         mft.debug_print(res);
     };
     search.mapReduceSearch = function(coll_name, query_obj) {

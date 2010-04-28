@@ -9,14 +9,17 @@ var fixture = [
 ]
 
 mft.get('util').load_records_from_list(fixture, 'fulltext_index_creation');
-db.eval("mftsearch = mft.get('search');");
+var mftsearch = mft.get('search');
 
 var result ;
 var conf = db.fulltext_config
 conf.insert({'collection_name' : 'fulltext_index_creation', 'fields': {'title': 5, 'content': 1}});
 
 // TODO: add index on collection name (should we have an _id attribute too?)
-db.eval("mftsearch.mapReduceIndex('fulltext_index_creation');");
+
+// map reduce from db.eval is not supported - http://groups.google.com/group/mongodb-user/browse_frm/thread/546380c7f546cb94/e1d9c7cc9807f213#e1d9c7cc9807f213
+
+mftsearch.mapReduceIndex('fulltext_index_creation');
 
 assert.eq(s.find().toArray(), [
   { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory", "_extracted_terms" : [ "fish", "fish", "fish", "fish", "fish", "grouper", "like", "john", "dori"
