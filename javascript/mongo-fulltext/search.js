@@ -21,6 +21,10 @@ var search = function (){
       _TOKENIZE_FUNCTION: null,
     };
     
+    search.indexMap = function() {}
+    search.indexReduce = function() {}
+    search.searchMap = function() {}
+    search.searchReduce = function() {}
     
     search.indexedFieldsAndWeights = function(coll_name) {
       
