@@ -33,4 +33,8 @@ mft.debug_print = function(msg) {
     }
 };
 
-
+mft.warning_print = function(msg) {
+    if ((typeof mft != 'undefined') && mft.WARNING) {
+      print(tojson(msg));
+    }
+};

@@ -1,5 +1,6 @@
 "use strict";
 // mft.DEBUG = true;
+mft.WARNING = true;
 
 var search = function (){
     
@@ -169,13 +170,13 @@ var search = function (){
 
     search.getTermIdf = function(coll_name, term) {
       var score_record = db.fulltext_term_scores.findOne({collection_name: coll_name, term: term});
-      mft.print_debug("score_record=" + tojson(score_record));
+      mft.debug_print("score_record=" + tojson(score_record));
       if (score_record === null) {
-        print("WARNING: no score cached for term " + term);
+        mft.warning_print("no score cached for term " + term);
         return 0.0;
       } else {
         if (score_record.dirty) {
-          print("WARNING: score for term " + term + " may be incorrect");
+          mft.warning_print("score for term " + term + " may be incorrect");
         }
         return score_record.score;
       }
