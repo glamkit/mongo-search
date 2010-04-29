@@ -225,7 +225,7 @@ var search = function (){
     //   }
     //   mft.debug_print("query_obj=" + tojson(query_obj));
     //   var filtered = db[coll_name].find(query_obj);
-    //   var scores_and_ids = Array();
+    //   var scores_and_ids = [];
     //   mft.debug_print("num recs found: " + filtered.count());
     //   filtered.forEach(
     //     function(record) {
@@ -234,7 +234,7 @@ var search = function (){
     //     });
     //   return new search.SearchPseudoCursor(coll_name, scores_and_ids);
     //   // scores_and_ids.sort(search.sortNumericFirstDescending); // need to provide a custom search function anyway, as JS does sorts alphabetically
-    //   // var scored_records = Array();
+    //   // var scored_records = [];
     //   // // this is the dodgy way - need to do a cursor in the future
     //   // for (var i = 0; i < scores_and_ids.length; i++) {
     //   //   var score_and_id = scores_and_ids[i];
@@ -383,7 +383,7 @@ var search = function (){
     };
 
     search.checkExtractedTermIndex = function(coll_name) {
-      ext_terms_idx_criteria = Array();
+      ext_terms_idx_criteria = [];
       ext_terms_idx_criteria[search.EXTRACTED_TERMS_FIELD] = 1;
       db[coll_name].ensureIndex(ext_terms_idx_criteria);
     };
@@ -396,7 +396,7 @@ var search = function (){
     //   if (typeof calculate_idf === 'undefined') {
     //     calculate_idf = true; // assume we're just indexing this one doc - so we probably want to cal at the time
     //   }
-    //   var all_extracted_terms = Array();
+    //   var all_extracted_terms = [];
     //   for (var field in indexed_fields) {    
     //     all_extracted_terms = all_extracted_terms.concat(
     //        search.extractFieldTokens(coll_name, record, field, indexed_fields[field])
@@ -464,7 +464,7 @@ var search = function (){
     search.stem = function(field_tokens) {
         
       var stem_fn = search.getStemFunction();
-      var stemmed = Array();
+      var stemmed = [];
       for (var i = 0; i < field_tokens.length; i++) {
         stemmed.push(stem_fn(field_tokens[i]));
       }
