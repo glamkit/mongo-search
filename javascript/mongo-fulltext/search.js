@@ -1,5 +1,5 @@
 "use strict";
-mft.DEBUG = true;
+//mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -97,9 +97,10 @@ var search = function (){
       var filtered = db[coll_name].find(query_obj);
       var scores_and_ids = Array();
       mft.debug_print("num recs found: " + filtered.count());
+      var idf_cache = {}
       filtered.forEach(
         function(record) {
-          var score = search.scoreRecordAgainstQuery(coll_name, record, query_terms);
+          var score = search.scoreRecordAgainstQuery(coll_name, record, query_terms, idf_cache);
           scores_and_ids.push([score, record._id]);
         });
       return new search.SearchPseudoCursor(coll_name, scores_and_ids);
@@ -122,7 +123,7 @@ var search = function (){
     };
     
     
-    search.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
+    search.scoreRecordAgainstQuery = function(coll_name, record, query_terms, idf_cache) {
       
       var record_terms = record[search.EXTRACTED_TERMS_FIELD];
       mft.debug_print("record=" + record);
@@ -132,8 +133,10 @@ var search = function (){
         query_terms_set[query_terms[i]] = true; // to avoid needing to iterate
       }
       mft.debug_print("query_terms_set=" + tojson(query_terms_set));
-
-      var idf_cache = {};
+      
+      if (typeof idf_cache === 'undefined') {
+        idf_cache = {}
+      }
       var record_vec_sum_sq = 0;
       var full_vector_norm = search.getParams(coll_name).full_vector_norm;
       
