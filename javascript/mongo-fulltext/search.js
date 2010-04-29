@@ -24,7 +24,7 @@ var search = function (){
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //
-    search.indexMap = function() {
+    search._indexMap = function() {
         //note `this` is bound to a document from the db, not the namespace object
         mft.debug_print('executing indexMap with');        
         mft.debug_print(this);
@@ -43,7 +43,7 @@ var search = function (){
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //    
-    search.indexReduce = function(key, valueArray) {
+    search._indexReduce = function(key, valueArray) {
         mft.debug_print('executing indexReduce for key');        
         mft.debug_print(key);
         mft.debug_print('and values');        
@@ -72,8 +72,8 @@ var search = function (){
         var index_coll_name = search.indexName(coll_name);
         var res = db.runCommand(
           { mapreduce : coll_name,
-            map : search.indexMap,
-            reduce : search.indexReduce,
+            map : search._indexMap,
+            reduce : search._indexReduce,
             out : index_coll_name,
             verbose : true,
             scope: {
@@ -94,7 +94,7 @@ var search = function (){
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //
-    search.searchMap = function() {
+    search._searchMap = function() {
         mft.debug_print("in searchMap with doc: ");
         mft.debug_print(this);
         mft.debug_print("and search terms: ");
@@ -109,7 +109,7 @@ var search = function (){
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //
-    search.searchReduce = function(key, valueArray) {
+    search._searchReduce = function(key, valueArray) {
         // once again, nearly trivial reduce in our case, since record _ids here map onto record _ids proper 1:1
         //
         return valueArray[0];
@@ -135,8 +135,8 @@ var search = function (){
         var index_coll_name = search.indexName(coll_name);
         var res = db.runCommand(
             { mapreduce : index_coll_name,
-              map : search.searchMap,
-              reduce : search.searchReduce,
+              map : search._searchMap,
+              reduce : search._searchReduce,
               // this should contain a filter to discard objects without the right term in the index, like {"value.extracted_terms": { $all: search_terms }}
               // [, query : <query filter object>] 
               // later:
