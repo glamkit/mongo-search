@@ -154,10 +154,17 @@ var search = function (){
         
         var res = db.runCommand(params);
         mft.debug_print(res);
-        db[res.results].ensureIndex(
+        
+        // this is  a disposable collection, which means reads:writes are
+        // in a 1:1 ratio, so indexing it may be pointless, performance-wise
+        // however it may only be sorted WITHOUT an index if it is less than
+        // 4 megabytes - see http://www.mongodb.org/display/DOCS/Indexes#Indexes-Using%7B%7Bsort%28%29%7D%7DwithoutanIndex
+        db[res.result].ensureIndex(
             {"value.score": 1},
             {background:true}
         );
+        return db[res.result].find().sort({"value.score": 1});
+        // return res;
     };
     
     search.indexName = function(coll_name) {
