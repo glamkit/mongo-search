@@ -131,22 +131,28 @@ var search = function (){
         // searches a given coll's index
         // return a (temporary?) coll name containing the sorted results
         //
-        mft.debug_print(res);
         var search = mft.get('search');
-        var query_terms = search.processQueryString(search_query_string);
+        var search_query_terms = search.processQueryString(search_query_string);
+        mft.debug_print("searching using: ");
+        mft.debug_print(search_query_terms);
         var index_coll_name = search.indexName(coll_name);
-        var res = db.runCommand(
-            { mapreduce : index_coll_name,
-              map : search._searchMap,
-              reduce : search._searchReduce,
-              // this should contain a filter to discard objects without the right term in the index, like {"value.extracted_terms": { $all: search_terms }}
-              // [, query : <query filter object>] 
-              // later:
-              // out : "searchfun",
-              scope : {search_terms: query_terms, coll_name: coll_name},
-              verbose : true
-            }
-        );
+        var params = { mapreduce : index_coll_name,
+            map : search._searchMap,
+            reduce : search._searchReduce,
+            // this is a filter to ignore objects without the right term in the index - generated in a moment...
+            query : {},
+            // later:
+            // out : "searchfun",
+            scope : {search_terms: search_query_terms, coll_name: coll_name},
+            verbose : true
+        };
+        
+        // note that I've lazily assumed "$all" (i.e. AND search) here,
+        // rather than "$any" (OR). Since premature generalisation leads
+        // to herpes. 
+        params.query[("value."+search.EXTRACTED_TERMS_FIELD)] = { $all: search_query_terms };
+        
+        var res = db.runCommand(params);
         mft.debug_print(res);
         db[res.results].ensureIndex(
             {"value.score": 1},
