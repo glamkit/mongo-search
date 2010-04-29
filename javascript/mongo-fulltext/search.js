@@ -398,8 +398,8 @@ var search = function (){
     //   }
     //   var all_extracted_terms = Array();
     //   for (var field in indexed_fields) {    
-    //     all_extracted_terms = Array.concat(all_extracted_terms,
-    //       search.extractFieldTokens(coll_name, record, field, indexed_fields[field])
+    //     all_extracted_terms = all_extracted_terms.concat(
+    //        search.extractFieldTokens(coll_name, record, field, indexed_fields[field])
     //     );
     //   }
     //   record[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
