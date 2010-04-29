@@ -20,6 +20,10 @@ var search = function (){
       _TOKENIZE_FUNCTION: null
     };
     
+    //
+    // this function is designed to be called server side only,
+    // by a mapreduce run. it should never be called manually
+    //
     search.indexMap = function() {
         //note `this` is bound to a document from the db, not the namespace object
         mft.debug_print('executing indexMap with');        
@@ -34,7 +38,11 @@ var search = function (){
             emit(this._id, res);
         }
     };
-    
+
+    //
+    // this function is designed to be called server side only,
+    // by a mapreduce run. it should never be called manually
+    //    
     search.indexReduce = function(key, valueArray) {
         mft.debug_print('executing indexReduce for key');        
         mft.debug_print(key);
@@ -52,6 +60,10 @@ var search = function (){
         return doc;
     };
     
+    //
+    // This JS function should never be called, except from javascript
+    // clients. See note at search.mapReduceSearch
+    //
     search.mapReduceIndex = function(coll_name) {
         // full_text_index a given coll
         // you probably don't want to call this server side before checking
@@ -78,6 +90,10 @@ var search = function (){
         mft.debug_print(res);
     };
 
+    //
+    // this function is designed to be called server side only,
+    // by a mapreduce run. it should never be called manually
+    //
     search.searchMap = function() {
         mft.debug_print("in searchMap with doc: ");
         mft.debug_print(this);
@@ -88,43 +104,29 @@ var search = function (){
         // potential optimisation: don't return very low scores
         emit(this._id, score);
     };
+    
+    //
+    // this function is designed to be called server side only,
+    // by a mapreduce run. it should never be called manually
+    //
     search.searchReduce = function(key, valueArray) {
-        // once again, nearly trivial reduce in our case, since records here map onto records proper
+        // once again, nearly trivial reduce in our case, since record _ids here map onto record _ids proper 1:1
         //
         return valueArray[0];
     };
     
-    // call syntax: (the db.mapReduce helper is not on the server)
-    //              (why do we care? mapreduce is a client-only command)
-    // db.runCommand(
-    //  { mapreduce : <collection>,
-    //    map : <mapfunction>,
-    //    reduce : <reducefunction>
-    //    [, query : <query filter object>]
-    //    [, sort : <sort the query.  useful for optimization>]
-    //    [, limit : <number of objects to return from collection>]
-    //    [, out : <output-collection name>]
-    //    [, keeptemp: <true|false>]
-    //    [, finalize : <finalizefunction>]
-    //    [, scope : <object where fields go into javascript global scope >]
-    //    [, verbose : true]
-    //  }
-    // );
-    
-    // return object:
-    // { result : <collection_name>,
-    //       counts : {
-    //            input :  <number of objects scanned>,
-    //            emit  : <number of times emit was called>,
-    //            output : <number of items in output collection>
-    //       } ,
-    //       timeMillis : <job_time>,
-    //       ok : <1_if_ok>,
-    //       [, err : <errmsg_if_error>]
-    //     }
-    
+    //
+    // This JS function should never be called (except from javascript
+    // clients)
+    // for e.g. a python application you'll have to reimplement it in python
+    // since you want to call the mapreduce "naked" rather than from db.eval
+    // since
+    // 1) db.eval javascript execution is blocking, and
+    // 2) mapreduce isn't supported from db.eval 
+    // as such, this is a "reference implementation", and a testing one
+    //
     search.mapReduceSearch = function(coll_name, search_query_string, query_obj) {
-        // search a  given coll's index
+                // search a  given coll's index
         // return a (temporary?) coll name containing the sorted results
         //
         mft.debug_print(res);
@@ -505,8 +507,6 @@ var search = function (){
       }  
     };
 
-
-
     search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
       
       // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
@@ -557,7 +557,6 @@ var search = function (){
     
     return search;
 };
-
 
 _all = {
   search: search
