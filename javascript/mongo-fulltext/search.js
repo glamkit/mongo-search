@@ -24,18 +24,13 @@ var search = function (){
         //note `this` is bound to a document from the db, not the namespace object
         mft.debug_print('executing indexMap with');        
         mft.debug_print(this);
-        mft.debug_print('indexed fields: ' + tojson(indexed_fields));
         var search=mft.get('search');
         var res = {};
         for (var field in indexed_fields) {
-            mft.debug_print('field:');        
-            mft.debug_print(field);
             res = {};
-            res[search.EXTRACTED_TERMS_FIELD] =  search.extractFieldTokensFromRecord(
+            res[search.EXTRACTED_TERMS_FIELD] =  search.extractFieldTokens(
                 this, field, indexed_fields[field]
             );
-            mft.debug_print('extracted terms');        
-            mft.debug_print(res);
             emit(this._id, res);
         }
     };
@@ -52,8 +47,6 @@ var search = function (){
               doc[extracted_terms_field] || []
           );
         });
-        mft.debug_print('extracted terms');        
-        mft.debug_print(all_words_array);
         var doc = {};
         doc[extracted_terms_field] = all_words_array;
         return doc;
@@ -124,7 +117,8 @@ var search = function (){
     };
     
     search.indexName = function(coll_name) {
-        var search = mft.get('search'); //not guaranteed to have been done!
+        //calculate the collection name for the index of a given collection
+        var search = mft.get('search'); 
         return coll_name + search.INDEX_SUFFIX;
     };
     
@@ -166,11 +160,8 @@ var search = function (){
       mft.debug_print("retrieved config: " + tojson(collection_conf));
       return collection_conf.params;
     };
-
-
-
+    
     search.search = function(coll_name, query_obj) {
-      
       // check for $search member on query_obj
       // if it doesn't exist, pass through to regular .find
       // if it does, parse the ft query string, and add the appropriate filter
@@ -357,37 +348,37 @@ var search = function (){
       db[coll_name].ensureIndex(ext_terms_idx_criteria);
     };
 
-    search.indexSingleRecord = function(coll_name, record, indexed_fields, calculate_idf) {
-      if (typeof indexed_fields === 'undefined') {// we can pass this in to save CPU in bulk indexing, but might not
-
-        indexed_fields = search.indexedFieldsAndWeights(coll_name);
-      }
-      if (typeof calculate_idf === 'undefined') {
-        calculate_idf = true; // assume we're just indexing this one doc - so we probably want to cal at the time
-      }
-      var all_extracted_terms = Array();
-      for (var field in indexed_fields) {    
-        all_extracted_terms = Array.concat(all_extracted_terms,
-          search.extractFieldTokens(coll_name, record, field, indexed_fields[field])
-        );
-      }
-      record[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
-      // mft.debug_print("record is now: " + tojson(record));
-
-      db[coll_name].save(record);
-      if (calculate_idf) { // if we're doing just one doc
-        all_extracted_terms.forEach(function(x) {search.calcAndStoreTermIdf(coll_name, x);});
-      } else { // we're doing it in bulk, so defer calcs until later
-        all_extracted_terms.forEach(function(x) {search.storeEmptyTermIdf(coll_name, x);});
-      }
-    };
-    
-    
-    search.indexSingleRecordFromId = function(coll_name, record_id) {
-      
-      var rec = db[coll_name].findOne({'_id': record_id});
-      search.indexSingleRecord(coll_name, rec);
-    };
+    // search.indexSingleRecord = function(coll_name, record, indexed_fields, calculate_idf) {
+    //   if (typeof indexed_fields === 'undefined') {// we can pass this in to save CPU in bulk indexing, but might not
+    // 
+    //     indexed_fields = search.indexedFieldsAndWeights(coll_name);
+    //   }
+    //   if (typeof calculate_idf === 'undefined') {
+    //     calculate_idf = true; // assume we're just indexing this one doc - so we probably want to cal at the time
+    //   }
+    //   var all_extracted_terms = Array();
+    //   for (var field in indexed_fields) {    
+    //     all_extracted_terms = Array.concat(all_extracted_terms,
+    //       search.extractFieldTokens(coll_name, record, field, indexed_fields[field])
+    //     );
+    //   }
+    //   record[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
+    //   // mft.debug_print("record is now: " + tojson(record));
+    // 
+    //   db[coll_name].save(record);
+    //   if (calculate_idf) { // if we're doing just one doc
+    //     all_extracted_terms.forEach(function(x) {search.calcAndStoreTermIdf(coll_name, x);});
+    //   } else { // we're doing it in bulk, so defer calcs until later
+    //     all_extracted_terms.forEach(function(x) {search.storeEmptyTermIdf(coll_name, x);});
+    //   }
+    // };
+    // 
+    // 
+    // search.indexSingleRecordFromId = function(coll_name, record_id) {
+    //   
+    //   var rec = db[coll_name].findOne({'_id': record_id});
+    //   search.indexSingleRecord(coll_name, rec);
+    // };
 
     search.fillDirtyIdfScores = function(coll_name) {
       search.checkExtractedTermIndex(coll_name);
@@ -395,14 +386,7 @@ var search = function (){
       cur.forEach( function(x) { search.calcAndStoreTermIdf(coll_name, x.term); });
     };
 
-    search.extractFieldTokensFromRecord = function(record, field, upweighting) {
-        //not sure why coll_name gets passed in to extractFieldTokens
-        //so don't mess with that 
-        return search.extractFieldTokens('', record, field, upweighting);
-    };
-    
-    search.extractFieldTokens = function(coll_name, record, field, upweighting) {
-      
+    search.extractFieldTokens = function(record, field, upweighting) {
       // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
       var contents = record[field];
       if (typeof contents == 'object') {
