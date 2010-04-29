@@ -51,40 +51,6 @@ var search = function (){
         doc[extracted_terms_field] = all_words_array;
         return doc;
     };
-    search.searchMap = function() {
-      emit(key,value);
-    };
-    search.searchReduce = function(key, valueArray) {
-      return value;
-    };
-    
-    // call syntax: (the db.mapReduce helper is not on the server)
-    // db.runCommand(
-    //  { mapreduce : <collection>,
-    //    map : <mapfunction>,
-    //    reduce : <reducefunction>
-    //    [, query : <query filter object>]
-    //    [, sort : <sort the query.  useful for optimization>]
-    //    [, limit : <number of objects to return from collection>]
-    //    [, out : <output-collection name>]
-    //    [, keeptemp: <true|false>]
-    //    [, finalize : <finalizefunction>]
-    //    [, scope : <object where fields go into javascript global scope >]
-    //    [, verbose : true]
-    //  }
-    // );
-    
-    // return object:
-    // { result : <collection_name>,
-    //       counts : {
-    //            input :  <number of objects scanned>,
-    //            emit  : <number of times emit was called>,
-    //            output : <number of items in output collection>
-    //       } ,
-    //       timeMillis : <job_time>,
-    //       ok : <1_if_ok>,
-    //       [, err : <errmsg_if_error>]
-    //     }
     
     search.mapReduceIndex = function(coll_name) {
         // full_text_index a given coll
@@ -111,7 +77,59 @@ var search = function (){
         );
         mft.debug_print(res);
     };
+
+    search.searchMap = function() {
+        var score = search.scoreRecordAgainstQuery(coll_name, record, query_terms);
+          scores_and_ids.push([score, record._id]);
+        emit(key,value);
+    };
+    search.searchReduce = function(key, valueArray) {
+      return value;
+    };
+    
+    // call syntax: (the db.mapReduce helper is not on the server)
+    //              (although why do we care? mapreduce is a client command)
+    // db.runCommand(
+    //  { mapreduce : <collection>,
+    //    map : <mapfunction>,
+    //    reduce : <reducefunction>
+    //    [, query : <query filter object>]
+    //    [, sort : <sort the query.  useful for optimization>]
+    //    [, limit : <number of objects to return from collection>]
+    //    [, out : <output-collection name>]
+    //    [, keeptemp: <true|false>]
+    //    [, finalize : <finalizefunction>]
+    //    [, scope : <object where fields go into javascript global scope >]
+    //    [, verbose : true]
+    //  }
+    // );
+    
+    // return object:
+    // { result : <collection_name>,
+    //       counts : {
+    //            input :  <number of objects scanned>,
+    //            emit  : <number of times emit was called>,
+    //            output : <number of items in output collection>
+    //       } ,
+    //       timeMillis : <job_time>,
+    //       ok : <1_if_ok>,
+    //       [, err : <errmsg_if_error>]
+    //     }
     search.mapReduceSearch = function(coll_name, query_obj) {
+        // db.runCommand(
+        //  { mapreduce : <collection>,
+        //    map : <mapfunction>,
+        //    reduce : <reducefunction>
+        //    [, query : <query filter object>]
+        //    [, sort : <sort the query.  useful for optimization>]
+        //    [, limit : <number of objects to return from collection>]
+        //    [, out : <output-collection name>]
+        //    [, keeptemp: <true|false>]
+        //    [, finalize : <finalizefunction>]
+        //    [, scope : <object where fields go into javascript global scope >]
+        //    [, verbose : true]
+        //  }
+        // );
         //search a given coll, assuming it's been indexed
         // return a (temporary?) coll name containing the sorted results
     };
