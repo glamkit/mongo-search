@@ -179,7 +179,7 @@ var search = function (){
         search_query_string = query_obj[search.SEARCH_ANY_PSEUDO_FIELD];
         require_all = false;
       } else {
-        return db[coll_name].find(query_obj); // no need to call search, you chump
+        throw "No search term in search query!"; // no need to call search, you chump
       }
       mft.debug_print("query string is " + search_query_string);
       var query_terms = search.processQueryString(search_query_string);
