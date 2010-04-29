@@ -318,25 +318,25 @@ var search = function (){
     };
     
     
-    search.indexAll = function(coll_name) {
-      
-      mft.debug_print("indexing all records in " + coll_name);
-      var cur = db[coll_name].find();
-      indexed_fields = search.indexedFieldsAndWeights(coll_name);
-      mft.debug_print("indexed fields and weights: " + tojson(indexed_fields));
-      recs_indexed = 0;
-      search.checkTermScoreIndex(coll_name);
-      cur.forEach(function(x) { 
-        search.indexSingleRecord(coll_name, x, indexed_fields, false); 
-        recs_indexed++;
-        if (recs_indexed % 100 === 0) {
-          print(recs_indexed);
-        }
-      });
-      search.checkExtractedTermIndex(coll_name); // maybe delete this before populating to make it quicker?
-      mft.debug_print("Calculating IDF scores");
-      search.fillDirtyIdfScores(coll_name);
-    };
+    // search.indexAll = function(coll_name) {
+    //   
+    //   mft.debug_print("indexing all records in " + coll_name);
+    //   var cur = db[coll_name].find();
+    //   indexed_fields = search.indexedFieldsAndWeights(coll_name);
+    //   mft.debug_print("indexed fields and weights: " + tojson(indexed_fields));
+    //   recs_indexed = 0;
+    //   search.checkTermScoreIndex(coll_name);
+    //   cur.forEach(function(x) { 
+    //     search.indexSingleRecord(coll_name, x, indexed_fields, false); 
+    //     recs_indexed++;
+    //     if (recs_indexed % 100 === 0) {
+    //       print(recs_indexed);
+    //     }
+    //   });
+    //   search.checkExtractedTermIndex(coll_name); // maybe delete this before populating to make it quicker?
+    //   mft.debug_print("Calculating IDF scores");
+    //   search.fillDirtyIdfScores(coll_name);
+    // };
 
     search.checkTermScoreIndex = function(coll_name) {
       db.fulltext_term_scores.ensureIndex({collection_name: 1, term: 1});
