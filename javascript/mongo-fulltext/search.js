@@ -79,16 +79,23 @@ var search = function (){
     };
 
     search.searchMap = function() {
-        var score = search.scoreRecordAgainstQuery(coll_name, record, query_terms);
-          scores_and_ids.push([score, record._id]);
-        emit(key,value);
+        mft.debug_print("in searchMap with doc: ");
+        mft.debug_print(this);
+        mft.debug_print("and search terms: ");
+        mft.debug_print(search_terms);
+        var search = mft.get('search');
+        var score = search.scoreRecordAgainstQuery(this, search_terms);
+        // potential optimisation: don't return very low scores
+        emit(this._id, score);
     };
     search.searchReduce = function(key, valueArray) {
-      return value;
+        // once again, nearly trivial reduce in our case, since records here map onto records proper
+        //
+        return valueArray[0];
     };
     
     // call syntax: (the db.mapReduce helper is not on the server)
-    //              (although why do we care? mapreduce is a client command)
+    //              (why do we care? mapreduce is a client-only command)
     // db.runCommand(
     //  { mapreduce : <collection>,
     //    map : <mapfunction>,
@@ -115,23 +122,32 @@ var search = function (){
     //       ok : <1_if_ok>,
     //       [, err : <errmsg_if_error>]
     //     }
-    search.mapReduceSearch = function(coll_name, query_obj) {
-        // db.runCommand(
-        //  { mapreduce : <collection>,
-        //    map : <mapfunction>,
-        //    reduce : <reducefunction>
-        //    [, query : <query filter object>]
-        //    [, sort : <sort the query.  useful for optimization>]
-        //    [, limit : <number of objects to return from collection>]
-        //    [, out : <output-collection name>]
-        //    [, keeptemp: <true|false>]
-        //    [, finalize : <finalizefunction>]
-        //    [, scope : <object where fields go into javascript global scope >]
-        //    [, verbose : true]
-        //  }
-        // );
-        //search a given coll, assuming it's been indexed
+    
+    search.mapReduceSearch = function(coll_name, search_query_string, query_obj) {
+        // search a  given coll's index
         // return a (temporary?) coll name containing the sorted results
+        //
+        mft.debug_print(res);
+        var search = mft.get('search');
+        var query_terms = search.processQueryString(search_query_string);
+        var index_coll_name = search.indexName(coll_name);
+        var res = db.runCommand(
+            { mapreduce : index_coll_name,
+              map : search.searchMap,
+              reduce : search.searchReduce,
+              // this should contain a filter to discard objects without the right term in the index, like {"value.extracted_terms": { $all: search_terms }}
+              // [, query : <query filter object>] 
+              // later:
+              // out : "searchfun",
+              scope : {search_terms: query_terms, coll_name: coll_name},
+              verbose : true
+            }
+        );
+        mft.debug_print(res);
+        db[res.results].ensureIndex(
+            {"value.score": 1},
+            {background:true}
+        );
     };
     
     search.indexName = function(coll_name) {
@@ -141,7 +157,6 @@ var search = function (){
     };
     
     search.indexedFieldsAndWeights = function(coll_name) {
-      
       // we expect a special collection named '_fulltext_config', with items having elems 'collection_name', 'fields', and 'params'
       // with 'fields' having keys being the field name, and the values being the weight.
       //eg:
@@ -179,56 +194,56 @@ var search = function (){
       return collection_conf.params;
     };
     
-    search.search = function(coll_name, query_obj) {
-      // check for $search member on query_obj
-      // if it doesn't exist, pass through to regular .find
-      // if it does, parse the ft query string, and add the appropriate filter
-      // clause to the non-ft-search components, execute that, then
-      // score every remaining document, and put those sorted IDs and scores in a record in 
-      // a private collection (hashed by the whole query obj, which we can check next time around)
-      // then iterate through the IDs and scores and return the corresponding records with the IDs
-      // attached to them, in a way that emulates a cursor object.
-      var search_query_string;
-      var require_all;
-      if (query_obj[search.SEARCH_ALL_PSEUDO_FIELD]) {
-        search_query_string = query_obj[search.SEARCH_ALL_PSEUDO_FIELD];
-        require_all = true;
-      } else if (query_obj[search.SEARCH_ALL_PSEUDO_FIELD]) {
-        search_query_string = query_obj[search.SEARCH_ANY_PSEUDO_FIELD];
-        require_all = false;
-      } else {
-        throw "No search term in search query!"; // no need to call search, you chump
-      }
-      mft.debug_print("query string is " + search_query_string);
-      var query_terms = search.processQueryString(search_query_string);
-      mft.debug_print("query terms is " + (query_terms.join(',') + " with length " + query_terms.length));
-      query_obj[search.EXTRACTED_TERMS_FIELD] = search.filterArg(coll_name, query_terms, require_all);
-      if (require_all) {
-        delete(query_obj[search.SEARCH_ALL_PSEUDO_FIELD]); // need to get rid f pseudo args, as they stop .find() from returning anything
-      } else {
-        delete(query_obj[search.SEARCH_ANY_PSEUDO_FIELD]);
-      }
-      mft.debug_print("query_obj=" + tojson(query_obj));
-      var filtered = db[coll_name].find(query_obj);
-      var scores_and_ids = Array();
-      mft.debug_print("num recs found: " + filtered.count());
-      filtered.forEach(
-        function(record) {
-          var score = search.scoreRecordAgainstQuery(coll_name, record, query_terms);
-          scores_and_ids.push([score, record._id]);
-        });
-      return new search.SearchPseudoCursor(coll_name, scores_and_ids);
-      // scores_and_ids.sort(search.sortNumericFirstDescending); // need to provide a custom search function anyway, as JS does sorts alphabetically
-      // var scored_records = Array();
-      // // this is the dodgy way - need to do a cursor in the future
-      // for (var i = 0; i < scores_and_ids.length; i++) {
-      //   var score_and_id = scores_and_ids[i];
-      //   record = db[coll_name].findOne({_id: score_and_id[1]});
-      //   record.score = score_and_id[0];
-      //   scored_records.push(record);
-      // }
-      // return scored_records;
-    };
+    // search.search = function(coll_name, query_obj) {
+    //   // check for $search member on query_obj
+    //   // if it doesn't exist, pass through to regular .find
+    //   // if it does, parse the ft query string, and add the appropriate filter
+    //   // clause to the non-ft-search components, execute that, then
+    //   // score every remaining document, and put those sorted IDs and scores in a record in 
+    //   // a private collection (hashed by the whole query obj, which we can check next time around)
+    //   // then iterate through the IDs and scores and return the corresponding records with the IDs
+    //   // attached to them, in a way that emulates a cursor object.
+    //   var search_query_string;
+    //   var require_all;
+    //   if (query_obj[search.SEARCH_ALL_PSEUDO_FIELD]) {
+    //     search_query_string = query_obj[search.SEARCH_ALL_PSEUDO_FIELD];
+    //     require_all = true;
+    //   } else if (query_obj[search.SEARCH_ALL_PSEUDO_FIELD]) {
+    //     search_query_string = query_obj[search.SEARCH_ANY_PSEUDO_FIELD];
+    //     require_all = false;
+    //   } else {
+    //     throw "No search term in search query!"; // no need to call search, you chump
+    //   }
+    //   mft.debug_print("query string is " + search_query_string);
+    //   var query_terms = search.processQueryString(search_query_string);
+    //   mft.debug_print("query terms is " + (query_terms.join(',') + " with length " + query_terms.length));
+    //   query_obj[search.EXTRACTED_TERMS_FIELD] = search.filterArg(coll_name, query_terms, require_all);
+    //   if (require_all) {
+    //     delete(query_obj[search.SEARCH_ALL_PSEUDO_FIELD]); // need to get rid f pseudo args, as they stop .find() from returning anything
+    //   } else {
+    //     delete(query_obj[search.SEARCH_ANY_PSEUDO_FIELD]);
+    //   }
+    //   mft.debug_print("query_obj=" + tojson(query_obj));
+    //   var filtered = db[coll_name].find(query_obj);
+    //   var scores_and_ids = Array();
+    //   mft.debug_print("num recs found: " + filtered.count());
+    //   filtered.forEach(
+    //     function(record) {
+    //       var score = search.scoreRecordAgainstQuery(coll_name, record, query_terms);
+    //       scores_and_ids.push([score, record._id]);
+    //     });
+    //   return new search.SearchPseudoCursor(coll_name, scores_and_ids);
+    //   // scores_and_ids.sort(search.sortNumericFirstDescending); // need to provide a custom search function anyway, as JS does sorts alphabetically
+    //   // var scored_records = Array();
+    //   // // this is the dodgy way - need to do a cursor in the future
+    //   // for (var i = 0; i < scores_and_ids.length; i++) {
+    //   //   var score_and_id = scores_and_ids[i];
+    //   //   record = db[coll_name].findOne({_id: score_and_id[1]});
+    //   //   record.score = score_and_id[0];
+    //   //   scored_records.push(record);
+    //   // }
+    //   // return scored_records;
+    // };
     
 
     search.sortNumericFirstDescending = function(a, b) {
@@ -237,9 +252,13 @@ var search = function (){
     };
     
     
-    search.scoreRecordAgainstQuery = function(coll_name, record, query_terms) {
-      
-      var record_terms = record[search.EXTRACTED_TERMS_FIELD];
+    search.scoreRecordAgainstQuery = function(record, query_terms) {
+      mft.debug_print("in scoreRecordAgainstQuery with coll_name: ");
+      mft.debug_print(coll_name);
+      mft.debug_print("and record: ");
+      mft.debug_print(record);
+      var search = mft.get("search");
+      var record_terms = record.value[search.EXTRACTED_TERMS_FIELD];
       mft.debug_print("record=" + record);
       var query_terms_set = {};
       var score = 0.0;
@@ -250,8 +269,11 @@ var search = function (){
 
       var idf_cache = {};
       var record_vec_sum_sq = 0;
-      var full_vector_norm = search.getParams(coll_name).full_vector_norm;
-      
+      mft.debug_print("getParams");
+      mft.debug_print(search.getParams(coll_name));
+      mft.debug_print("getting full_vector_norm");
+      // var full_vector_norm = search.getParams(coll_name).full_vector_norm;
+      var full_vector_norm = 0;
       var getCachedTermIdf = function(x) {
         var term_idf = idf_cache[term];
         if (term_idf === undefined) {
@@ -427,7 +449,8 @@ var search = function (){
     
     
     search.stemAndTokenize = function(field_contents) {
-      
+      mft.debug_print("stem'n'tokenising: ");
+      mft.debug_print(field_contents);
       return search.stem(search.tokenize(field_contents.toLowerCase())); //TODO: actually stem as promised
     };
 
