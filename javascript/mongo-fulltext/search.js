@@ -5,7 +5,11 @@ mft.WARNING = true;
 var search = function (){
     var search = {
       // CONFIG ITEMS:
-
+      // accessing these from the server requires several function calls;
+      // they should probably be stored in a safely serialisable config object
+      // that is stashed in the system.js collection (for server use) and
+      // global scope locally (for client/testing use)
+      //
       STEMMING: 'porter', // doesn't do anything yet
       TOKENIZING: 'basic',// doesn't do anything yet
 
@@ -66,8 +70,6 @@ var search = function (){
     //
     search.mapReduceIndex = function(coll_name) {
         // full_text_index a given coll
-        // you probably don't want to call this server side before checking
-        // if it's a blocking call
         var search = mft.get('search'); //not guaranteed to have been done!
         var index_coll_name = search.indexName(coll_name);
         var res = db.runCommand(
@@ -126,7 +128,7 @@ var search = function (){
     // as such, this is a "reference implementation", and a testing one
     //
     search.mapReduceSearch = function(coll_name, search_query_string, query_obj) {
-                // search a  given coll's index
+        // searches a given coll's index
         // return a (temporary?) coll name containing the sorted results
         //
         mft.debug_print(res);
@@ -160,17 +162,7 @@ var search = function (){
     
     search.indexedFieldsAndWeights = function(coll_name) {
       // we expect a special collection named '_fulltext_config', with items having elems 'collection_name', 'fields', and 'params'
-      // with 'fields' having keys being the field name, and the values being the weight.
-      //eg:
-          // {
-          //   collection_name: 'test', 
-          //   fields: {
-          //     title: 5,
-          //     content: 1
-          //   }
-          //   params: { }
-          // }
-  
+      // with 'fields' having keys being the field name, and the values being the weight. e.g.:  
       //> fc = {collection_name: 'gallery_collection_items', fields: {'title': 10, 'further_information': 1}}// 
       // {
       //         "collection_name" : "gallery_collection_items",
