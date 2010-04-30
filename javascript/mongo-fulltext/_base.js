@@ -27,9 +27,14 @@ mft.get = function(name) {
     return mft._awake[name];
 };
 
-mft.debug_print = function(msg) {
-    if ((typeof mft != 'undefined') && mft.DEBUG) {
-      print(tojson(msg));
+mft.debug_print = function(msg, label) {
+    if (mft.DEBUG) {
+        if (label) {
+            print(label + ": ");
+        }
+        if (typeof mft != 'undefined') {
+            print(tojson(msg));
+        }
     }
 };
 
