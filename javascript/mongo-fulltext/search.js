@@ -295,10 +295,12 @@ var search = function (){
         var term_in_query = (term in query_terms_set);
         var term_idf = 0;
         if (term_in_query || full_vector_norm) {
-          term_idf = getCachedTermIdf(term);
+            //begin Dan IDF Hack
+            // term_idf = getCachedTermIdf(term);
+            term_idf = 1;
         }
         if (term_in_query) {
-          score += term_idf;
+            score += term_idf;
         }
         record_vec_sum_sq += full_vector_norm ? term_idf * term_idf : 1.0;
       }
@@ -326,7 +328,7 @@ var search = function (){
 
     search.getTermIdf = function(coll_name, term) {
       var score_record = db.fulltext_term_scores.findOne({collection_name: coll_name, term: term});
-      mft.debug_print("score_record=" + tojson(score_record));
+      mft.debug_print(score_record, "score_record");
       if (score_record === null) {
         mft.warning_print("no score cached for term " + term);
         return 0.0;
