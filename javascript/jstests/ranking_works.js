@@ -3,7 +3,6 @@ var s = db.ranking_works;
 s.drop();
 var full_vector_norm = false;
 
-
 var fixture = [
     { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory" },
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels" },
@@ -25,10 +24,19 @@ result = search.mapReduceSearch('ranking_works', 'fish').toArray();
 
 // print(result, "Search result for 'fish'");
 
-assert.eq(result, [{ "_id" : 1, "value" : 0 }, { "_id" : 3, "value" : 0 }]);
+assert.eq(result, [
+        {
+                "_id" : 1,
+                "value" : 1.6666666666666667
+        },
+        {
+                "_id" : 3,
+                "value" : 1.386750490563073
+        }
+]);
 
 result = search.mapReduceSearch('ranking_works', 'Dory').toArray();
 
 // print(result, "Search result for 'Dory'");
 
-assert.eq(result, [ { "_id" : 1, "value" : 0 }]);
+assert.eq(result, [ { "_id" : 1, "value" : 0.3333333333333333 } ]);
