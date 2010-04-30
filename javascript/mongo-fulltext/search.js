@@ -174,7 +174,7 @@ var search = function (){
     };
     
     search.indexedFieldsAndWeights = function(coll_name) {
-      // we expect a special collection named '_fulltext_config', with items having elems 'collection_name', 'fields', and 'params'
+      // we expect a special collection named 'fulltext_config', with items having elems 'collection_name', 'fields', and 'params'
       // with 'fields' having keys being the field name, and the values being the weight. e.g.:  
       //> fc = {collection_name: 'gallery_collection_items', fields: {'title': 10, 'further_information': 1}}// 
       // {
@@ -194,6 +194,7 @@ var search = function (){
       collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
       return collection_conf.fields;
     };
+
     
     search.getParams = function(coll_name) {
       collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
