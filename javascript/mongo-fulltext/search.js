@@ -252,13 +252,13 @@ var search = function (){
     //   // }
     //   // return scored_records;
     // };
-    
-
-    search.sortNumericFirstDescending = function(a, b) {
-      
-      return b[0] - a[0];
-    };
-    
+    // 
+    // 
+    // search.sortNumericFirstDescending = function(a, b) {
+    //   
+    //   return b[0] - a[0];
+    // };
+    // 
     
     search.scoreRecordAgainstQuery = function(record, query_terms) {
       mft.debug_print("in scoreRecordAgainstQuery with coll_name: ");
