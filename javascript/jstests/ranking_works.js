@@ -3,10 +3,7 @@ var s = db.ranking_works;
 s.drop();
 var full_vector_norm = false;
 
-<<<<<<< HEAD
-=======
 
->>>>>>> b01b3dc4c90059ef524a69bbbe873a360a2759d0
 var fixture = [
     { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory" },
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels" },
