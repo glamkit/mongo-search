@@ -166,6 +166,7 @@ var search = function (){
         return db[res.result].find().sort({"value.score": 1});
         // return res;
     };
+
     
     search.indexName = function(coll_name) {
         //calculate the collection name for the index of a given collection
@@ -361,10 +362,11 @@ var search = function (){
       return filter_obj;
     };
     
-    
+    // this needs to be implemented client-side
     search.processQueryString = function(query_string) {
-      
-      return search.stemAndTokenize(query_string); // maybe tokenizing should be different for queries?
+        var normalised_query = search.stemAndTokenize(query_string);
+        normalised_query.sort();
+        return normalised_query; // maybe tokenizing should be different for queries?
     };
     
     
