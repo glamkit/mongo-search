@@ -20,7 +20,7 @@ var result ;
 
 // TODO: add index on collection name (should we have an _id attribute too?)
 result = search.mapReduceSearch('ranking_works', 'fish');
-result = db[res.result].find().sort({"value.score": 1}).toArray();
+result = db[result.result].find().sort({"value.score": 1}).toArray();
 
 // print(result, "Search result for 'fish'");
 
@@ -35,7 +35,8 @@ assert.eq(result, [
         }
 ]);
 
-result = search.mapReduceSearch('ranking_works', 'Dory').toArray();
+result = search.mapReduceSearch('ranking_works', 'Dory');
+result = db[result.result].find().sort({"value.score": 1}).toArray();
 
 // print(result, "Search result for 'Dory'");
 
