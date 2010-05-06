@@ -14,7 +14,8 @@ var search = function (){
       TOKENIZING: 'basic',// doesn't do anything yet
 
       EXTRACTED_TERMS_FIELD: '_extracted_terms',
-      INDEX_SUFFIX: '__fulltext',
+      INDEX_NAMESPACE: 'search_.indexes',
+      RESULT_NAMESPACE: 'search_.results',
       SEARCH_ALL_PSEUDO_FIELD: '$search', // magic "field name" that specifies we want a fulltext search 
                 // (abusing the '$' notation somewhat, which is often for search operators)
       SEARCH_ANY_PSEUDO_FIELD: '$searchany', // magic "field name" that specifies we want a fulltext search matching any, not all
@@ -72,6 +73,7 @@ var search = function (){
         // full_text_index a given coll
         var search = mft.get('search'); //not guaranteed to have been done!
         var index_coll_name = search.indexName(coll_name);
+        mft.debug_print(index_coll_name, "index_coll_name");
         var res = db.runCommand(
           { mapreduce : coll_name,
             map : search._indexMap,
@@ -127,9 +129,10 @@ var search = function (){
     // 2) mapreduce isn't supported from db.eval 
     // as such, this is a "reference implementation", and a testing one
     //
-    search.mapReduceSearch = function(coll_name, search_query_string, query_obj) {
+    search.mapReduceSearch = function(coll_name, search_query_string, keep_results) {
         // searches a given coll's index
-        // return a (temporary?) coll name containing the sorted results
+        // return a coll name containing the sorted results - permanent
+        // nicely named if keep_results is true
         //
         var search = mft.get('search');
         var search_query_terms = search.processQueryString(search_query_string);
@@ -141,7 +144,7 @@ var search = function (){
             reduce : search._searchReduce,
             // this is a filter to ignore objects without the right term in the index - generated in a moment...
             query : {},
-            // later:
+            // if we wish to keep these results around we'll need to specify a coll name
             // out : "searchfun",
             scope : {search_terms: search_query_terms, coll_name: coll_name},
             verbose : true
@@ -151,6 +154,10 @@ var search = function (){
         // rather than "$any" (OR). Since premature generalisation leads
         // to herpes. 
         params.query[("value."+search.EXTRACTED_TERMS_FIELD)] = { $all: search_query_terms };
+        
+        if (keep_results) {
+            params.out = search.encodeQueryString(search_query_terms);
+        }
         
         var res = db.runCommand(params);
         mft.debug_print(res);
@@ -163,15 +170,89 @@ var search = function (){
             {"value.score": 1},
             {background:true}
         );
-        return db[res.result].find().sort({"value.score": 1});
-        // return res;
+        return res;
     };
 
+    //
+    // this function is designed to be called server side only,
+    // by a mapreduce run. it should never be called manually
+    //
+    search._niceSearchMap = function() {
+        mft.debug_print(this, "in _niceSearchMap with doc: ");
+        mft.debug_print(coll_name, "and coll_name");
+        var doc = db[coll_name].findOne({_id: this._id});
+        doc.score = this.value;
+        emit(this._id, doc);
+    };
+
+    //
+    // this function is designed to be called server side only,
+    // by a mapreduce run. it should never be called manually
+    //
+    search._niceSearchReduce = function(key, valueArray) {
+        // once again, trivial reduce in our case, since record _ids here map onto record _ids proper 1:1
+        //
+        return valueArray[0];
+    };
+
+    //
+    // This JS function should never be called, except from javascript
+    // clients. See note at search.mapReduceSearch
+    // 
+    search.mapReduceNiceSearch = function(coll_name, search_coll_name, query_obj) {
+        // takes a search collection and a query dict and returns a temporary
+        // coll worth of results including whole records.
+        // different from the mapReduceSearch in that it 
+        // 1) returns whole records, not just ranks
+        // 2) can limit results by other criteria than fulltext search
+        //
+        var search = mft.get('search');
+        mft.debug_print(coll_name, 'coll_name');
+        mft.debug_print(search_coll_name, 'search_coll_name');
+        mft.debug_print(query_obj, 'query_obj');
+        
+        var params = { mapreduce : search_coll_name,
+            map : search._niceSearchMap,
+            reduce : search._niceSearchReduce,
+            sort : {"value.score": 1},
+            scope : {coll_name: coll_name},
+            verbose : true
+        };
+        
+        var id_list ;
+        if (query_obj) {
+            id_list = db[coll_name].find(query_obj, {_id: 1});
+            params.query = {_id: {$in: id_list}};
+        }
+        mft.debug_print(id_list, 'id_list');
+
+        var res = db.runCommand(params);
+        mft.debug_print(res);
+
+        // this is  a disposable collection, which means reads:writes are
+        // in a 1:1 ratio, so indexing it may be pointless, performance-wise
+        // however it may only be sorted WITHOUT an index if it is less than
+        // 4 megabytes - see http://www.mongodb.org/display/DOCS/Indexes#Indexes-Using%7B%7Bsort%28%29%7D%7DwithoutanIndex
+        // but DOES it need to be sorted is the question?
+        //
+        db[res.result].ensureIndex(
+            {"value.score": 1},
+            {background:true}
+        );
+        return db[res.result].find().sort({"value.score": -1});
+    };
     
+    //generate a coll name for a collection index
     search.indexName = function(coll_name) {
         //calculate the collection name for the index of a given collection
-        var search = mft.get('search'); 
-        return coll_name + search.INDEX_SUFFIX;
+        var search = mft.get('search');
+        return search.INDEX_NAMESPACE + "." + coll_name ;
+    };
+    //generate a coll for some search results (if we wish to stash them)
+    search.resultName = function(coll_name, search_terms) {
+        //calculate the collection name for the index of a given collection
+        var search = mft.get('search');
+        return search.RESULT_NAMESPACE + "." + coll_name +  search.encodeQueryString(search_terms);
     };
     
     search.indexedFieldsAndWeights = function(coll_name) {
@@ -369,6 +450,10 @@ var search = function (){
         return normalised_query; // maybe tokenizing should be different for queries?
     };
     
+    // this needs to be implemented client-side
+    search.encodeQueryString = function(processed_query_string) {
+        return processed_query_string.join('__');
+    };
     
     // search.indexAll = function(coll_name) {
     //   
@@ -564,7 +649,6 @@ var search = function (){
         return rec;
       };
     };
-    
     return search;
 };
 
