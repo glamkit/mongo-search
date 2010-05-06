@@ -1,13 +1,11 @@
 # −*− coding: UTF−8 −*−
+"""
+Things to help with testing - nice dict compararers etc.
+"""
+
 from nose.tools import nottest, assert_equals
 
 @nottest
-def clear_db():
-    from collection.models import get_db
-    db = get_db()
-    db.connection().drop_database(db)
-    db = get_db(flush_cached=True)
-
 def key_comparison(dict_a, dict_b, key):
     val_a, val_b = dict_a.get(key), dict_b.get(key)
     if hasattr(val_a, 'to_dict'): val_a = val_a.to_dict()
@@ -17,6 +15,7 @@ def key_comparison(dict_a, dict_b, key):
           "dict unequal for key %s. (%s != %s)" % (key, str(val_a), str(val_b))
         )
 
+@nottest
 def dict_comparer(dict_a, dict_b):
     """
     yield keywise tests for dict equality, making it easy to see what is going on

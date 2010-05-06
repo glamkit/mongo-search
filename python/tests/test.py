@@ -1,19 +1,11 @@
 # −*− coding: UTF−8 −*−
+"""
+actual tests for the mongo-full-test-search thingy
+"""
 from nose import with_setup
 from nose.tools import assert_true, assert_equals, assert_raises
 from ..tests import simplefixture
-from ..whoosh_searching import get_field
 
-import sys
-BIG_NUM = sys.float_info[0] #max float
-
-def setup_fixture():
-    create_indexes()
-    resave_everything()
-    whoosh_searching.populate_search_index(recreate=True)
-
-def teardown_fixture():
-    pass
 
 def setup_module():
     """
