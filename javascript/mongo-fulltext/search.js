@@ -601,54 +601,6 @@ var search = function (){
         }
       }  
     };
-
-    search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
-      
-      // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
-      // memory, and not taking lots of time to sort results we may not need - hence the heap
-      this.coll_name = coll_name;
-      // fetch the BinaryHeap constructor on a separate line for clarity
-      
-      var BinaryHeap = mft.get('BinaryHeap');
-      
-      var scores_and_ids_heap = new BinaryHeap(function(x) { return -x[0]; });
-  
-      // mft.debug_print("score function running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
-      scores_and_ids.forEach( function(x) {
-        scores_and_ids_heap.push(x); // in-place would be better, but let's leave that unless we think it would be useful
-      });
-      this.scores_and_ids_heap = scores_and_ids_heap;
-
-
-      this.hasNext = function() {
-        return this.scores_and_ids_heap.size() > 0;
-      };
-      
-      this.next = function() {
-        return this.fetchScoredRecord(this.scores_and_ids_heap.pop());
-      };
-      
-      //ATM this doesn't get called...
-      //db.eval("return tojson(mftsearch.search('search_works', {$search: 'fish'}).toArray());");
-      //returns a non-array (appears to be a 
-      this.toArray = function() {
-        output = [];
-        while (this.hasNext()) {
-          output.push(this.next());
-        }
-        return output;
-      };
-      
-      this.fetchById = function(record_id) {
-        return db[this.coll_name].findOne({_id: record_id});
-      };
-      
-      this.fetchScoredRecord = function(score_and_id) {
-        rec = this.fetchById(score_and_id[1]);
-        rec.score = score_and_id[0];
-        return rec;
-      };
-    };
     return search;
 };
 
