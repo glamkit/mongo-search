@@ -14,7 +14,8 @@ var search = function (){
       TOKENIZING: 'basic',// doesn't do anything yet
 
       EXTRACTED_TERMS_FIELD: '_extracted_terms',
-      INDEX_SUFFIX: '__fulltext',
+      INDEX_NAMESPACE: 'search_.indexes',
+      RESULT_NAMESPACE: 'search_.results',
       SEARCH_ALL_PSEUDO_FIELD: '$search', // magic "field name" that specifies we want a fulltext search 
                 // (abusing the '$' notation somewhat, which is often for search operators)
       SEARCH_ANY_PSEUDO_FIELD: '$searchany', // magic "field name" that specifies we want a fulltext search matching any, not all
@@ -72,6 +73,7 @@ var search = function (){
         // full_text_index a given coll
         var search = mft.get('search'); //not guaranteed to have been done!
         var index_coll_name = search.indexName(coll_name);
+        mft.debug_print(index_coll_name, "index_coll_name");
         var res = db.runCommand(
           { mapreduce : coll_name,
             map : search._indexMap,
@@ -127,9 +129,10 @@ var search = function (){
     // 2) mapreduce isn't supported from db.eval 
     // as such, this is a "reference implementation", and a testing one
     //
-    search.mapReduceSearch = function(coll_name, search_query_string, query_obj) {
+    search.mapReduceSearch = function(coll_name, search_query_string, keep_results) {
         // searches a given coll's index
-        // return a (temporary?) coll name containing the sorted results
+        // return a coll name containing the sorted results - permanent
+        // nicely named if keep_results is true
         //
         var search = mft.get('search');
         var search_query_terms = search.processQueryString(search_query_string);
@@ -141,7 +144,7 @@ var search = function (){
             reduce : search._searchReduce,
             // this is a filter to ignore objects without the right term in the index - generated in a moment...
             query : {},
-            // later:
+            // if we wish to keep these results around we'll need to specify a coll name
             // out : "searchfun",
             scope : {search_terms: search_query_terms, coll_name: coll_name},
             verbose : true
@@ -151,6 +154,10 @@ var search = function (){
         // rather than "$any" (OR). Since premature generalisation leads
         // to herpes. 
         params.query[("value."+search.EXTRACTED_TERMS_FIELD)] = { $all: search_query_terms };
+        
+        if (keep_results) {
+            params.out = search.encodeQueryString(search_query_terms);
+        }
         
         var res = db.runCommand(params);
         mft.debug_print(res);
@@ -163,14 +170,89 @@ var search = function (){
             {"value.score": 1},
             {background:true}
         );
-        return db[res.result].find().sort({"value.score": 1});
-        // return res;
+        return res;
+    };
+
+    //
+    // this function is designed to be called server side only,
+    // by a mapreduce run. it should never be called manually
+    //
+    search._niceSearchMap = function() {
+        mft.debug_print(this, "in _niceSearchMap with doc: ");
+        mft.debug_print(coll_name, "and coll_name");
+        var doc = db[coll_name].findOne({_id: this._id});
+        doc.score = this.value;
+        emit(this._id, doc);
+    };
+
+    //
+    // this function is designed to be called server side only,
+    // by a mapreduce run. it should never be called manually
+    //
+    search._niceSearchReduce = function(key, valueArray) {
+        // once again, trivial reduce in our case, since record _ids here map onto record _ids proper 1:1
+        //
+        return valueArray[0];
+    };
+
+    //
+    // This JS function should never be called, except from javascript
+    // clients. See note at search.mapReduceSearch
+    // 
+    search.mapReduceNiceSearch = function(coll_name, search_coll_name, query_obj) {
+        // takes a search collection and a query dict and returns a temporary
+        // coll worth of results including whole records.
+        // different from the mapReduceSearch in that it 
+        // 1) returns whole records, not just ranks
+        // 2) can limit results by other criteria than fulltext search
+        //
+        var search = mft.get('search');
+        mft.debug_print(coll_name, 'coll_name');
+        mft.debug_print(search_coll_name, 'search_coll_name');
+        mft.debug_print(query_obj, 'query_obj');
+        
+        var params = { mapreduce : search_coll_name,
+            map : search._niceSearchMap,
+            reduce : search._niceSearchReduce,
+            sort : {"value.score": 1},
+            scope : {coll_name: coll_name},
+            verbose : true
+        };
+        
+        var id_list ;
+        if (query_obj) {
+            id_list = db[coll_name].find(query_obj, {_id: 1});
+            params.query = {_id: {$in: id_list}};
+        }
+        mft.debug_print(id_list, 'id_list');
+
+        var res = db.runCommand(params);
+        mft.debug_print(res);
+
+        // this is  a disposable collection, which means reads:writes are
+        // in a 1:1 ratio, so indexing it may be pointless, performance-wise
+        // however it may only be sorted WITHOUT an index if it is less than
+        // 4 megabytes - see http://www.mongodb.org/display/DOCS/Indexes#Indexes-Using%7B%7Bsort%28%29%7D%7DwithoutanIndex
+        // but DOES it need to be sorted is the question?
+        //
+        db[res.result].ensureIndex(
+            {"value.score": 1},
+            {background:true}
+        );
+        return db[res.result].find().sort({"value.score": -1});
     };
     
+    //generate a coll name for a collection index
     search.indexName = function(coll_name) {
         //calculate the collection name for the index of a given collection
-        var search = mft.get('search'); 
-        return coll_name + search.INDEX_SUFFIX;
+        var search = mft.get('search');
+        return search.INDEX_NAMESPACE + "." + coll_name ;
+    };
+    //generate a coll for some search results (if we wish to stash them)
+    search.resultName = function(coll_name, search_terms) {
+        //calculate the collection name for the index of a given collection
+        var search = mft.get('search');
+        return search.RESULT_NAMESPACE + "." + coll_name +  search.encodeQueryString(search_terms);
     };
     
     search.indexedFieldsAndWeights = function(coll_name) {
@@ -252,13 +334,13 @@ var search = function (){
     //   // }
     //   // return scored_records;
     // };
-    
-
-    search.sortNumericFirstDescending = function(a, b) {
-      
-      return b[0] - a[0];
-    };
-    
+    // 
+    // 
+    // search.sortNumericFirstDescending = function(a, b) {
+    //   
+    //   return b[0] - a[0];
+    // };
+    // 
     
     search.scoreRecordAgainstQuery = function(record, query_terms) {
       mft.debug_print("in scoreRecordAgainstQuery with coll_name: ");
@@ -361,12 +443,17 @@ var search = function (){
       return filter_obj;
     };
     
-    
+    // this needs to be implemented client-side
     search.processQueryString = function(query_string) {
-      
-      return search.stemAndTokenize(query_string); // maybe tokenizing should be different for queries?
+        var normalised_query = search.stemAndTokenize(query_string);
+        normalised_query.sort();
+        return normalised_query; // maybe tokenizing should be different for queries?
     };
     
+    // this needs to be implemented client-side
+    search.encodeQueryString = function(processed_query_string) {
+        return processed_query_string.join('__');
+    };
     
     // search.indexAll = function(coll_name) {
     //   
@@ -514,55 +601,6 @@ var search = function (){
         }
       }  
     };
-
-    search.SearchPseudoCursor = function(coll_name, scores_and_ids) {
-      
-      // class to vaguely efficiently act as a store for the the retrived records while not chewing up lots of
-      // memory, and not taking lots of time to sort results we may not need - hence the heap
-      this.coll_name = coll_name;
-      // fetch the BinaryHeap constructor on a separate line for clarity
-      
-      var BinaryHeap = mft.get('BinaryHeap');
-      
-      var scores_and_ids_heap = new BinaryHeap(function(x) { return -x[0]; });
-  
-      // mft.debug_print("score function running: " + scores_and_ids_heap.scoreFunction([[1, 2], [3,1]]);
-      scores_and_ids.forEach( function(x) {
-        scores_and_ids_heap.push(x); // in-place would be better, but let's leave that unless we think it would be useful
-      });
-      this.scores_and_ids_heap = scores_and_ids_heap;
-
-
-      this.hasNext = function() {
-        return this.scores_and_ids_heap.size() > 0;
-      };
-      
-      this.next = function() {
-        return this.fetchScoredRecord(this.scores_and_ids_heap.pop());
-      };
-      
-      //ATM this doesn't get called...
-      //db.eval("return tojson(mftsearch.search('search_works', {$search: 'fish'}).toArray());");
-      //returns a non-array (appears to be a 
-      this.toArray = function() {
-        output = [];
-        while (this.hasNext()) {
-          output.push(this.next());
-        }
-        return output;
-      };
-      
-      this.fetchById = function(record_id) {
-        return db[this.coll_name].findOne({_id: record_id});
-      };
-      
-      this.fetchScoredRecord = function(score_and_id) {
-        rec = this.fetchById(score_and_id[1]);
-        rec.score = score_and_id[0];
-        return rec;
-      };
-    };
-    
     return search;
 };
 

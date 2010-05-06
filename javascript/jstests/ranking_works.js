@@ -3,10 +3,7 @@ var s = db.ranking_works;
 s.drop();
 var full_vector_norm = false;
 
-<<<<<<< HEAD
-=======
 
->>>>>>> b01b3dc4c90059ef524a69bbbe873a360a2759d0
 var fixture = [
     { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory" },
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels" },
@@ -22,9 +19,9 @@ search.mapReduceIndex('ranking_works');
 
 var result ;
 
-
 // TODO: add index on collection name (should we have an _id attribute too?)
-result = search.mapReduceSearch('ranking_works', 'fish').toArray();
+result = search.mapReduceSearch('ranking_works', 'fish');
+result = db[result.result].find().sort({"value.score": 1}).toArray();
 
 // print(result, "Search result for 'fish'");
 
@@ -40,7 +37,8 @@ assert.eq(result, [
 ]);
 
 
-result = search.mapReduceSearch('ranking_works', 'Dory').toArray();
+result = search.mapReduceSearch('ranking_works', 'Dory');
+result = db[result.result].find().sort({"value.score": 1}).toArray();
 
 // print(result, "Search result for 'Dory'");
 
