@@ -544,7 +544,6 @@ var search = function (){
       }
     };
     
-    
     search.stemAndTokenize = function(field_contents) {
       mft.debug_print("stem'n'tokenising: ");
       mft.debug_print(field_contents);
@@ -552,14 +551,11 @@ var search = function (){
     };
 
     search.tokenizeBasic = function(field_contents) {
-      
       var token_re = /\b(\w[\w'-]*\w|\w)\b/g;
       return field_contents.match(token_re);
     };
     
-    
     search.stem = function(field_tokens) {
-        
       var stem_fn = search.getStemFunction();
       var stemmed = [];
       for (var i = 0; i < field_tokens.length; i++) {
