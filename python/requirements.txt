@@ -1,3 +1,0 @@
--e git://github.com/mongodb/mongo-python-driver.git@a4ef720805aa9ffcf59b728979ded9c514586fe8#egg=pymongo-1.4_-py2.6-dev
-wsgiref==0.1.2
-Using already activated environment /Users/dan/.virtualenvs/mongofulltext
