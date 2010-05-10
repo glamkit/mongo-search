@@ -1,4 +1,4 @@
 #you'll also need mongo>=1.4.1
 setuptools
--e git://github.com/mongodb/mongo-python-driver.git@59b644061de93828b0724b0a261250937c9598e7#egg=pymongo-1.5.1_-py2.6-dev
+-e git://github.com/mongodb/mongo-python-driver.git@c3cb6b94dbd4f000cefc782a045f7c9b077e783e#egg=pymongo
 wsgiref==0.1.2
