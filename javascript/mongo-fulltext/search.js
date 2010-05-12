@@ -108,14 +108,25 @@ var search = function (){
     
     search._termIdfReduce = function(key, valueArray) {
       var sum = 0;
+      mft.debug_print("Executing _termIdfReduce with key:");
+      mft.debug_print(key);
+      mft.debug_print("and value:");
+      mft.debug_print(valueArray);
       valueArray.forEach(function(x) {
         sum += x;
       });
+      mft.debug_print("returning:");      
+      mft.debug_print(sum);
       return sum;
     };
     
-    search._termIdfFinalize = function(key, sumArray) {
-      return Math.log(num_docs_in_coll) - Math.log(sumArray[0]);
+    search._termIdfFinalize = function(key, termSum) {
+      mft.debug_print("Executing _termIdfFinalize with key:");
+      mft.debug_print(key);
+      mft.debug_print("and value:");
+      mft.debug_print(termSum);
+      mft.debug_print(num_docs_in_coll, "num_docs_in_coll");
+      return Math.log(num_docs_in_coll) - Math.log(termSum);
     };
 
 
