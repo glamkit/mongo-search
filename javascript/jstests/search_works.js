@@ -4,6 +4,7 @@ s.drop();
 var full_vector_norm = false;
 
 
+
 var fixture = [
     { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory" },
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels" },
@@ -17,70 +18,18 @@ mft.get('util').load_records_from_list(fixture, 'search_works');
 var search = mft.get('search');
 search.mapReduceIndex('search_works');
 
-var result ;
-
+var ranks_result ;
+var search_result ;
 
 // TODO: add index on collection name (should we have an _id attribute too?)
-result = search.mapReduceSearch('search_works', 'fish').toArray();
+ranks_result = search.mapReduceSearch('search_works', 'fish', true);
 
+search_result = search.mapReduceNiceSearch("search_works", "fish");
 // print(result, "Search result for 'fish'");
 
-assert.eq(result, [
-        {
-                "_id" : 1,
-                "value" : 1.6666666666666667
-        },
-        {
-                "_id" : 3,
-                "value" : 1.386750490563073
-        }
-]);
-
-
-result = search.mapReduceSearch('search_works', 'Dory').toArray();
-
-// print(result, "Search result for 'Dory'");
-
-assert.eq(result, [ { "_id" : 1, "value" : 0.3333333333333333 } ]);
-
-assert.eq(result, [
-    {
-            "_id" : 1,
-            "title" : "fish",
-            "content" : "groupers like John Dory",
-            "_extracted_terms" : [
-                    "fish",
-                    "fish",
-                    "fish",
-                    "fish",
-                    "fish",
-                    "grouper",
-                    "like",
-                    "john",
-                    "dori"
-            ],
-            "score" : 0.6757751801802742
-    },
-    {
-            "_id" : 3,
-            "title" : "dogs & fish",
-            "content" : "whippets kick groupers",
-            "_extracted_terms" : [
-                    "dog",
-                    "fish",
-                    "dog",
-                    "fish",
-                    "dog",
-                    "fish",
-                    "dog",
-                    "fish",
-                    "dog",
-                    "fish",
-                    "whippet",
-                    "kick",
-                    "grouper"
-            ],
-            "score" : 0.5622789375752065
-    }
-]);
+assert.eq(search_result.toArray(), [
+    { "_id" : 1, "value" : { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory", "score" : 1.6666666666666667 } },
+    { "_id" : 3, "value" : { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers", "score" : 1.386750490563073 } }],
+    "search_works_1"
+);
 
