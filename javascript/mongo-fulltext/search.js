@@ -101,8 +101,12 @@ var search = function (){
       var search = mft.get('search');
       mft.debug_print("Executing _termIdfMap with:");
       mft.debug_print(this);
+      emitted_terms = {};
       this.value[search.EXTRACTED_TERMS_FIELD].forEach( function(term) {
-        emit(term, 1);
+        if (! (term in emitted_terms)) { // don't want duplicates for any term in a doc
+          emitted_terms[term] = true;
+          emit(term, 1);
+        }
       });
     };
     
