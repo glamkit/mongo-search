@@ -1,5 +1,5 @@
 "use strict";
-//mft.DEBUG = true;
+mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -16,6 +16,7 @@ var search = function (){
       EXTRACTED_TERMS_FIELD: '_extracted_terms',
       INDEX_NAMESPACE: 'search_.indexes',
       RESULT_NAMESPACE: 'search_.results',
+      TERM_SCORE_NAMESPACE: 'search_.termscores',
       SEARCH_ALL_PSEUDO_FIELD: '$search', // magic "field name" that specifies we want a fulltext search 
                 // (abusing the '$' notation somewhat, which is often for search operators)
       SEARCH_ANY_PSEUDO_FIELD: '$searchany', // magic "field name" that specifies we want a fulltext search matching any, not all
@@ -93,7 +94,60 @@ var search = function (){
         );
         mft.debug_print(res);
     };
+    
+    
+    
+    search._termIdfMap = function() {
+      var search = mft.get('search');
+      mft.debug_print("Executing _termIdfMap with:");
+      mft.debug_print(this);
+      this.value[search.EXTRACTED_TERMS_FIELD].forEach( function(term) {
+        emit(term, 1);
+      });
+    };
+    
+    search._termIdfReduce = function(key, valueArray) {
+      var sum = 0;
+      valueArray.forEach(function(x) {
+        sum += x;
+      });
+      return sum;
+    };
+    
+    search._termIdfFinalize = function(key, sumArray) {
+      return Math.log(num_docs_in_coll) - Math.log(sumArray[0]);
+    };
 
+
+    //
+    // This JS function should never be called, except from javascript
+    // clients. See note at search.mapReduceSearch
+    //
+    search.mapReduceTermIdf = function(coll_name) {
+        // full_text_index a given coll
+        var search = mft.get('search'); //not guaranteed to have been done!
+        var index_coll_name = search.indexName(coll_name);
+        var term_score_name = search.termScoreName(coll_name);
+        mft.debug_print(index_coll_name, "index_coll_name");
+        mft.debug_print(term_score_name, "term_score_name");
+        var res = db.runCommand(
+          { mapreduce : index_coll_name,
+            map : search._termIdfMap,
+            reduce : search._termIdfReduce,
+            finalize: search._termIdfFinalize,
+            out : term_score_name,
+            verbose : true,
+            scope: {
+                num_docs_in_coll: db[coll_name].find().count()
+            }
+         }
+        );
+        mft.debug_print(res);
+    };
+
+
+
+    
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
@@ -255,6 +309,13 @@ var search = function (){
         return search.RESULT_NAMESPACE + "." + coll_name +  search.encodeQueryString(search_terms);
     };
     
+    //generate a coll for some search results (if we wish to stash them)
+    search.termScoreName = function(coll_name, search_terms) {
+        //calculate the collection name for the index of a given collection
+        var search = mft.get('search');
+        return search.TERM_SCORE_NAMESPACE + "." + coll_name;
+    };
+        
     search.indexedFieldsAndWeights = function(coll_name) {
       // we expect a special collection named 'fulltext_config', with items having elems 'collection_name', 'fields', and 'params'
       // with 'fields' having keys being the field name, and the values being the weight. e.g.:  
