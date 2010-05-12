@@ -349,7 +349,6 @@ var search = function (){
       mft.debug_print(record);
       var search = mft.get("search");
       var record_terms = record.value[search.EXTRACTED_TERMS_FIELD];
-      mft.debug_print("record=" + record);
       var query_terms_set = {};
       var score = 0.0;
       for (var i = 0; i < query_terms.length; i++) {
@@ -528,11 +527,11 @@ var search = function (){
     search.extractFieldTokens = function(record, field, upweighting) {
       // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
       var contents = record[field];
-      if (typeof contents == 'object') {
-        contents = contents.join(" ");
-      }
       if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
         return;
+      }
+      if (typeof contents == 'object') {
+        contents = contents.join(" ");
       }
       var processed_contents = search.stemAndTokenize(contents);  
       if (upweighting == 1) { // special -casing for the common case - may be slightly quicker avoiding the array copy
