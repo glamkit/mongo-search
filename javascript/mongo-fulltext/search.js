@@ -324,9 +324,8 @@ var search = function (){
         return search.RESULT_NAMESPACE + "." + coll_name +  search.encodeQueryString(search_terms);
     };
     
-    //generate a coll for some search results (if we wish to stash them)
-    search.termScoreName = function(coll_name, search_terms) {
-        //calculate the collection name for the index of a given collection
+    search.termScoreName = function(coll_name) {
+        //calculate the collection name for the term scores (probably IDF) of a given collection
         var search = mft.get('search');
         return search.TERM_SCORE_NAMESPACE + "." + coll_name;
     };
@@ -451,15 +450,15 @@ var search = function (){
       };
       for (var j = 0; j < record_terms.length; j++) {
         var term = record_terms[j];
+        mft.debug_print(term, "scoring term");
         var term_in_query = (term in query_terms_set);
         var term_idf = 0;
         if (term_in_query || full_vector_norm) {
-            //begin Dan IDF Hack
-            // term_idf = getCachedTermIdf(term);
-            term_idf = 1;
+          term_idf = getCachedTermIdf(term);
+          mft.debug_print(term_idf, "term_idf");
         }
         if (term_in_query) {
-            score += term_idf;
+          score += term_idf;
         }
         record_vec_sum_sq += full_vector_norm ? term_idf * term_idf : 1.0;
       }
@@ -486,7 +485,10 @@ var search = function (){
     
 
     search.getTermIdf = function(coll_name, term) {
-      var score_record = db.fulltext_term_scores.findOne({collection_name: coll_name, term: term});
+      var search = mft.get("search");
+      var score_record = db[search.termScoreName(coll_name)].findOne({_id: term});
+      mft.debug_print(search.termScoreName(coll_name), "term_score_coll_name");
+      mft.debug_print(term, "term");
       mft.debug_print(score_record, "score_record");
       if (score_record === null) {
         mft.warning_print("no score cached for term " + term);
@@ -495,7 +497,7 @@ var search = function (){
         if (score_record.dirty) {
           mft.warning_print("score for term " + term + " may be incorrect");
         }
-        return score_record.score;
+        return score_record.value;
       }
     };
 
