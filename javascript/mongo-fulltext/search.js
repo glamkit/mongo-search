@@ -97,9 +97,9 @@ var search = function (){
     
     
     
-    search._termIdfMap = function() {
+    search._termScoreMap = function() {
       var search = mft.get('search');
-      mft.debug_print("Executing _termIdfMap with:");
+      mft.debug_print("Executing _termScoreMap with:");
       mft.debug_print(this);
       emitted_terms = {};
       this.value[search.EXTRACTED_TERMS_FIELD].forEach( function(term) {
@@ -110,9 +110,9 @@ var search = function (){
       });
     };
     
-    search._termIdfReduce = function(key, valueArray) {
+    search._termScoreReduce = function(key, valueArray) {
       var sum = 0;
-      mft.debug_print("Executing _termIdfReduce with key:");
+      mft.debug_print("Executing _termScoreReduce with key:");
       mft.debug_print(key);
       mft.debug_print("and value:");
       mft.debug_print(valueArray);
@@ -124,8 +124,8 @@ var search = function (){
       return sum;
     };
     
-    search._termIdfFinalize = function(key, termSum) {
-      mft.debug_print("Executing _termIdfFinalize with key:");
+    search._termScoreFinalize = function(key, termSum) {
+      mft.debug_print("Executing _termScoreFinalize with key:");
       mft.debug_print(key);
       mft.debug_print("and value:");
       mft.debug_print(termSum);
@@ -138,7 +138,7 @@ var search = function (){
     // This JS function should never be called, except from javascript
     // clients. See note at search.mapReduceSearch
     //
-    search.mapReduceTermIdf = function(coll_name) {
+    search.mapReduceTermScore = function(coll_name) {
         // full_text_index a given coll
         var search = mft.get('search'); //not guaranteed to have been done!
         var index_coll_name = search.indexName(coll_name);
@@ -147,9 +147,9 @@ var search = function (){
         mft.debug_print(term_score_name, "term_score_name");
         var res = db.runCommand(
           { mapreduce : index_coll_name,
-            map : search._termIdfMap,
-            reduce : search._termIdfReduce,
-            finalize: search._termIdfFinalize,
+            map : search._termScoreMap,
+            reduce : search._termScoreReduce,
+            finalize: search._termScoreFinalize,
             out : term_score_name,
             verbose : true,
             scope: {

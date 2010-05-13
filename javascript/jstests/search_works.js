@@ -17,6 +17,7 @@ conf.insert({'collection_name' : 'search_works', 'fields': {'title': 5, 'content
 mft.get('util').load_records_from_list(fixture, 'search_works');
 var search = mft.get('search');
 search.mapReduceIndex('search_works');
+search.mapReduceTermScore('search_works');
 
 var ranks_result ;
 var search_result ;
