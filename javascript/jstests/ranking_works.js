@@ -16,6 +16,7 @@ conf.insert({'collection_name' : 'ranking_works', 'fields': {'title': 5, 'conten
 mft.get('util').load_records_from_list(fixture, 'ranking_works');
 var search = mft.get('search');
 search.mapReduceIndex('ranking_works');
+search.mapReduceTermScore('ranking_works');
 
 var result ;
 
@@ -28,11 +29,11 @@ result = db[result.result].find().sort({"value.score": 1}).toArray();
 assert.eq(result, [
         {
                 "_id" : 1,
-                "value" : 1.6666666666666667
+                "value" : 0.6757751801802742
         },
         {
                 "_id" : 3,
-                "value" : 1.386750490563073
+                "value" : 0.5622789375752065
         }
 ]);
 
@@ -42,4 +43,4 @@ result = db[result.result].find().sort({"value.score": 1}).toArray();
 
 // print(result, "Search result for 'Dory'");
 
-assert.eq(result, [ { "_id" : 1, "value" : 0.3333333333333333 } ]);
+assert.eq(result, [ { "_id" : 1, "value" : 0.3662040962227033 } ]);
