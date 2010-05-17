@@ -1,7 +1,7 @@
 load('mongo-fulltext/_load.js');
 var s = db.search_works;
 s.drop();
-var full_vector_norm = false;
+var full_vector_norm = true;
 
 
 
@@ -21,9 +21,6 @@ search.mapReduceTermScore('search_works');
 
 var ranks_result ;
 var search_result ;
-
-// TODO: add index on collection name (should we have an _id attribute too?)
-ranks_result = search.mapReduceSearch('search_works', 'fish', true);
 
 search_result = search.mapReduceNiceSearch("search_works", "fish");
 // print(result, "Search result for 'fish'");
