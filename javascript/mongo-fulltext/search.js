@@ -227,7 +227,7 @@ var search = function (){
         params.query[("value."+search.EXTRACTED_TERMS_FIELD)] = { $all: search_query_terms };
         
         if (keep_results) {
-            params.out = search.encodeQueryString(search_query_terms);
+            params.out = search.resultName(coll_name, search_query_terms);
         }
         
         var res = db.runCommand(params);
@@ -323,7 +323,7 @@ var search = function (){
     search.resultName = function(coll_name, search_terms) {
         //calculate the collection name for the index of a given collection
         var search = mft.get('search');
-        return search.RESULT_NAMESPACE + "." + coll_name +  search.encodeQueryString(search_terms);
+        return search.RESULT_NAMESPACE + "." + coll_name +  "." + search.encodeQueryString(search_terms);
     };
     
     search.termScoreName = function(coll_name) {
