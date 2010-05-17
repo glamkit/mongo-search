@@ -20,7 +20,9 @@ var search = function (){
       SEARCH_ALL_PSEUDO_FIELD: '$search', // magic "field name" that specifies we want a fulltext search 
                 // (abusing the '$' notation somewhat, which is often for search operators)
       SEARCH_ANY_PSEUDO_FIELD: '$searchany', // magic "field name" that specifies we want a fulltext search matching any, not all
-  
+      
+      MIN_TERM_SCORE: 1.6, // threshold below which we don't add the score on - set to 0 to include all terms
+      
       // WORKHORSE VARS:
       _STEM_FUNCTION: null,
       _TOKENIZE_FUNCTION: null
@@ -429,10 +431,8 @@ var search = function (){
         mft.warning_print("no score cached for term " + term);
         return 0.0;
       } else {
-        if (score_record.dirty) {
-          mft.warning_print("score for term " + term + " may be incorrect");
-        }
-        return score_record.value;
+        var score = score_record.value
+        return score > search.MIN_TERM_SCORE ? score : 0.0;
       }
     };
 
