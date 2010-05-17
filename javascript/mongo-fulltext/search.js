@@ -411,16 +411,6 @@ var search = function (){
       // could probably take some shortcuts here w/o too much loss of accuracy
     };
 
-    search.calcTermIdf = function(coll_name, term) { //or should this be getTermIdf?
-      var term_filter_obj = {};
-      term_filter_obj[search.EXTRACTED_TERMS_FIELD] = search.filterArg(coll_name, [term], true);
-      var term_count = db[coll_name].find(term_filter_obj).count();
-      if (term_count === 0) { return 0.0; }
-      var num_docs = db[coll_name].find().count(); // TODO: memoize, or find a better method for getting this
-      return Math.log(num_docs) - Math.log(term_count);
-    };
-    
-
     search.getTermIdf = function(coll_name, term) {
       var search = mft.get("search");
       var score_record = db[search.termScoreName(coll_name)].findOne({_id: term});
@@ -457,26 +447,6 @@ var search = function (){
     search.encodeQueryString = function(processed_query_string) {
         return processed_query_string.join('__');
     };
-    
-    // search.indexAll = function(coll_name) {
-    //   
-    //   mft.debug_print("indexing all records in " + coll_name);
-    //   var cur = db[coll_name].find();
-    //   indexed_fields = search.indexedFieldsAndWeights(coll_name);
-    //   mft.debug_print("indexed fields and weights: " + tojson(indexed_fields));
-    //   recs_indexed = 0;
-    //   search.checkTermScoreIndex(coll_name);
-    //   cur.forEach(function(x) { 
-    //     search.indexSingleRecord(coll_name, x, indexed_fields, false); 
-    //     recs_indexed++;
-    //     if (recs_indexed % 100 === 0) {
-    //       print(recs_indexed);
-    //     }
-    //   });
-    //   search.checkExtractedTermIndex(coll_name); // maybe delete this before populating to make it quicker?
-    //   mft.debug_print("Calculating IDF scores");
-    //   search.fillDirtyIdfScores(coll_name);
-    // };
 
     search.checkTermScoreIndex = function(coll_name) {
       db.fulltext_term_scores.ensureIndex({collection_name: 1, term: 1});
@@ -488,37 +458,6 @@ var search = function (){
       db[coll_name].ensureIndex(ext_terms_idx_criteria);
     };
 
-    // search.indexSingleRecord = function(coll_name, record, indexed_fields, calculate_idf) {
-    //   if (typeof indexed_fields === 'undefined') {// we can pass this in to save CPU in bulk indexing, but might not
-    // 
-    //     indexed_fields = search.indexedFieldsAndWeights(coll_name);
-    //   }
-    //   if (typeof calculate_idf === 'undefined') {
-    //     calculate_idf = true; // assume we're just indexing this one doc - so we probably want to cal at the time
-    //   }
-    //   var all_extracted_terms = [];
-    //   for (var field in indexed_fields) {    
-    //     all_extracted_terms = all_extracted_terms.concat(all_extracted_terms,
-    //       search.extractFieldTokens(coll_name, record, field, indexed_fields[field])
-    //     );
-    //   }
-    //   record[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
-    //   // mft.debug_print("record is now: " + tojson(record));
-    // 
-    //   db[coll_name].save(record);
-    //   if (calculate_idf) { // if we're doing just one doc
-    //     all_extracted_terms.forEach(function(x) {search.calcAndStoreTermIdf(coll_name, x);});
-    //   } else { // we're doing it in bulk, so defer calcs until later
-    //     all_extracted_terms.forEach(function(x) {search.storeEmptyTermIdf(coll_name, x);});
-    //   }
-    // };
-    // 
-    // 
-    // search.indexSingleRecordFromId = function(coll_name, record_id) {
-    //   
-    //   var rec = db[coll_name].findOne({'_id': record_id});
-    //   search.indexSingleRecord(coll_name, rec);
-    // };
 
     search.fillDirtyIdfScores = function(coll_name) {
       search.checkExtractedTermIndex(coll_name);
