@@ -21,7 +21,7 @@ var search = function (){
                 // (abusing the '$' notation somewhat, which is often for search operators)
       SEARCH_ANY_PSEUDO_FIELD: '$searchany', // magic "field name" that specifies we want a fulltext search matching any, not all
       
-      MIN_TERM_SCORE: 1.6, // threshold below which we don't add the score on - set to 0 to include all terms
+      MIN_TERM_SCORE: 0.0, // threshold below which we don't add the score on - set to 0 to include all terms
       
       // WORKHORSE VARS:
       _STEM_FUNCTION: null,
