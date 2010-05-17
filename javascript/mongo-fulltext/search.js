@@ -448,23 +448,6 @@ var search = function (){
         return processed_query_string.join('__');
     };
 
-    search.checkTermScoreIndex = function(coll_name) {
-      db.fulltext_term_scores.ensureIndex({collection_name: 1, term: 1});
-    };
-
-    search.checkExtractedTermIndex = function(coll_name) {
-      ext_terms_idx_criteria = [];
-      ext_terms_idx_criteria[search.EXTRACTED_TERMS_FIELD] = 1;
-      db[coll_name].ensureIndex(ext_terms_idx_criteria);
-    };
-
-
-    search.fillDirtyIdfScores = function(coll_name) {
-      search.checkExtractedTermIndex(coll_name);
-      var cur = db.fulltext_term_scores.find({collection_name: coll_name, dirty: true});
-      cur.forEach( function(x) { search.calcAndStoreTermIdf(coll_name, x.term); });
-    };
-
     search.extractFieldTokens = function(record, field, upweighting) {
       // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
       var contents = record[field];
