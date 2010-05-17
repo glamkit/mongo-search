@@ -1,5 +1,5 @@
 "use strict";
-mft.DEBUG = true;
+// mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -437,9 +437,7 @@ var search = function (){
       var record_vec_sum_sq = 0;
       mft.debug_print("getParams");
       mft.debug_print(search.getParams(coll_name));
-      mft.debug_print("getting full_vector_norm");
-      // var full_vector_norm = search.getParams(coll_name).full_vector_norm;
-      var full_vector_norm = 0;
+      var full_vector_norm = 1;
       var getCachedTermIdf = function(x) {
         var term_idf = idf_cache[term];
         if (term_idf === undefined) {
