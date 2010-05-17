@@ -359,63 +359,6 @@ var search = function (){
       return collection_conf.params;
     };
     
-    // search.search = function(coll_name, query_obj) {
-    //   // check for $search member on query_obj
-    //   // if it doesn't exist, pass through to regular .find
-    //   // if it does, parse the ft query string, and add the appropriate filter
-    //   // clause to the non-ft-search components, execute that, then
-    //   // score every remaining document, and put those sorted IDs and scores in a record in 
-    //   // a private collection (hashed by the whole query obj, which we can check next time around)
-    //   // then iterate through the IDs and scores and return the corresponding records with the IDs
-    //   // attached to them, in a way that emulates a cursor object.
-    //   var search_query_string;
-    //   var require_all;
-    //   if (query_obj[search.SEARCH_ALL_PSEUDO_FIELD]) {
-    //     search_query_string = query_obj[search.SEARCH_ALL_PSEUDO_FIELD];
-    //     require_all = true;
-    //   } else if (query_obj[search.SEARCH_ALL_PSEUDO_FIELD]) {
-    //     search_query_string = query_obj[search.SEARCH_ANY_PSEUDO_FIELD];
-    //     require_all = false;
-    //   } else {
-    //     throw "No search term in search query!"; // no need to call search, you chump
-    //   }
-    //   mft.debug_print("query string is " + search_query_string);
-    //   var query_terms = search.processQueryString(search_query_string);
-    //   mft.debug_print("query terms is " + (query_terms.join(',') + " with length " + query_terms.length));
-    //   query_obj[search.EXTRACTED_TERMS_FIELD] = search.filterArg(coll_name, query_terms, require_all);
-    //   if (require_all) {
-    //     delete(query_obj[search.SEARCH_ALL_PSEUDO_FIELD]); // need to get rid f pseudo args, as they stop .find() from returning anything
-    //   } else {
-    //     delete(query_obj[search.SEARCH_ANY_PSEUDO_FIELD]);
-    //   }
-    //   mft.debug_print("query_obj=" + tojson(query_obj));
-    //   var filtered = db[coll_name].find(query_obj);
-    //   var scores_and_ids = [];
-    //   mft.debug_print("num recs found: " + filtered.count());
-    //   filtered.forEach(
-    //     function(record) {
-    //       var score = search.scoreRecordAgainstQuery(coll_name, record, query_terms);
-    //       scores_and_ids.push([score, record._id]);
-    //     });
-    //   return new search.SearchPseudoCursor(coll_name, scores_and_ids);
-    //   // scores_and_ids.sort(search.sortNumericFirstDescending); // need to provide a custom search function anyway, as JS does sorts alphabetically
-    //   // var scored_records = [];
-    //   // // this is the dodgy way - need to do a cursor in the future
-    //   // for (var i = 0; i < scores_and_ids.length; i++) {
-    //   //   var score_and_id = scores_and_ids[i];
-    //   //   record = db[coll_name].findOne({_id: score_and_id[1]});
-    //   //   record.score = score_and_id[0];
-    //   //   scored_records.push(record);
-    //   // }
-    //   // return scored_records;
-    // };
-    // 
-    // 
-    // search.sortNumericFirstDescending = function(a, b) {
-    //   
-    //   return b[0] - a[0];
-    // };
-    // 
     
     search.scoreRecordAgainstQuery = function(record, query_terms) {
       mft.debug_print("in scoreRecordAgainstQuery with coll_name: ");
@@ -467,12 +410,6 @@ var search = function (){
     };
 
     search.calcTermIdf = function(coll_name, term) { //or should this be getTermIdf?
-      
-      //
-      // this currently doesn't have any caching smarts.
-      // we could cache the IDF for each doc in the collection, but that would make updating more complicated
-      // for the moment I'll gamble on mongodb being quick enough to make it not a problem
-      // 
       var term_filter_obj = {};
       term_filter_obj[search.EXTRACTED_TERMS_FIELD] = search.filterArg(coll_name, [term], true);
       var term_count = db[coll_name].find(term_filter_obj).count();
@@ -497,17 +434,6 @@ var search = function (){
         }
         return score_record.value;
       }
-    };
-
-    search.calcAndStoreTermIdf = function(coll_name, term) {
-      idf_score = search.calcTermIdf(coll_name, term);
-      // print("DEBUG: calculated IDF for term " + term + " as " + idf_score);
-      db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {$set: {score: idf_score, dirty: false}}, {upsert: true});
-    };
-
-    search.storeEmptyTermIdf = function(coll_name, term) {
-      // adds the term into the index if it's not already there, but marks it as dirty
-      db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {$set: {dirty: true}}, {upsert: true});
     };
 
     search.filterArg = function(coll_name, query_terms, require_all) {
