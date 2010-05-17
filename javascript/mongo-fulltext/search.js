@@ -13,7 +13,6 @@ var search = function (){
       STEMMING: 'porter', // doesn't do anything yet
       TOKENIZING: 'basic',// doesn't do anything yet
 
-      EXTRACTED_TERMS_FIELD: '_extracted_terms',
       INDEX_NAMESPACE: 'search_.indexes',
       RESULT_NAMESPACE: 'search_.results',
 
@@ -41,7 +40,7 @@ var search = function (){
         var res = {};
         for (var field in indexed_fields) {
             res = {};
-            res[search.EXTRACTED_TERMS_FIELD] =  search.extractFieldTokens(
+            res._extracted_terms =  search.extractFieldTokens(
                 this, field, indexed_fields[field]
             );
             emit(this._id, res);
@@ -57,15 +56,14 @@ var search = function (){
         mft.debug_print(key);
         mft.debug_print('and values');        
         mft.debug_print(valueArray);
-        var extracted_terms_field = mft.get('search').EXTRACTED_TERMS_FIELD;
         var all_words_array = [];
         valueArray.forEach(function(doc) {
           all_words_array = all_words_array.concat(
-              doc[extracted_terms_field] || []
+              doc._extracted_terms || []
           );
         });
         var doc = {};
-        doc[extracted_terms_field] = all_words_array;
+        doc._extracted_terms = all_words_array;
         return doc;
     };
     
@@ -90,7 +88,7 @@ var search = function (){
          }
         );
         var indexes_required = {};
-        indexes_required[("value." + search.EXTRACTED_TERMS_FIELD)] =1;
+        indexes_required[("value._extracted_terms")] =1;
         db[index_coll_name].ensureIndex(
             indexes_required,
             {background:true}
@@ -99,11 +97,10 @@ var search = function (){
     };
     
     search._termScoreMap = function() {
-      var search = mft.get('search');
       mft.debug_print("Executing _termScoreMap with:");
       mft.debug_print(this);
       emitted_terms = {};
-      this.value[search.EXTRACTED_TERMS_FIELD].forEach( function(term) {
+      this.value._extracted_terms.forEach( function(term) {
         if (! (term in emitted_terms)) { // don't want duplicates for any term in a doc
           emitted_terms[term] = true;
           emit(term, 1);
@@ -229,7 +226,7 @@ var search = function (){
         // note that I've lazily assumed "$all" (i.e. AND search) here,
         // rather than "$any" (OR). Since premature generalisation leads
         // to herpes. 
-        params.query[("value."+search.EXTRACTED_TERMS_FIELD)] = { $all: search_query_terms };
+        params.query[("value._extracted_terms")] = { $all: search_query_terms };
         
         if (keep_results) {
             params.out = search.resultName(coll_name, search_query_terms);
@@ -373,7 +370,7 @@ var search = function (){
       mft.debug_print("and record: ");
       mft.debug_print(record);
       var search = mft.get("search");
-      var record_terms = record.value[search.EXTRACTED_TERMS_FIELD];
+      var record_terms = record.value._extracted_terms;
       var query_terms_set = {};
       var score = 0.0;
       for (var i = 0; i < query_terms.length; i++) {
@@ -430,16 +427,6 @@ var search = function (){
         var score = score_record.value
         return score > search.MIN_TERM_SCORE ? score : 0.0;
       }
-    };
-
-    search.filterArg = function(coll_name, query_terms, require_all) {
-      
-      if (require_all === undefined) {
-        require_all = true;
-      }
-      var filter_obj = {};
-      filter_obj[require_all ? '$all' : '$in'] = query_terms;
-      return filter_obj;
     };
     
     // this needs to be implemented client-side
