@@ -43,7 +43,6 @@ def teardown_module():
         _daemon.destroy()
 
 def test_simple_search():
-    se = whoosh_searching.search_engine()
     results = list(se.search(u'francesco'))
     assert len(results) == 1
 
