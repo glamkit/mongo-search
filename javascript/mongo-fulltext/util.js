@@ -46,7 +46,7 @@ var util = function(){
             coll_name = 'test';
         }
         util.init_test_collection(coll_name);
-        util.load_records_from_file('jstests/_fixture-basic.js');
+        util.load_records_from_file('jstests/_fixture-basic.json');
         util.load_server_functions();
     };
     return util;
