@@ -1,5 +1,6 @@
 """
-Re-used from the Whoosh project
+This stemmer is re-used from the Whoosh project.
+If we want a Porter2 stemmer, there is one available at http://dirolf.com/project/pyporter2.html
 
 Reimplementation of the
 `Porter stemming algorithm <http://tartarus.org/~martin/PorterStemmer/>`_
