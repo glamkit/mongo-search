@@ -97,8 +97,7 @@ def load_fixture(relative_fixture_path, collection):
     proc = subprocess.Popen(
       [
         'mongoimport',
-        '--host', host,
-        '--port', str(port),
+        '--host', host + ":" + str(port),
         '--db', db_name,
         '--collection', collection.name,
         '--file', relative_fixture_path
@@ -175,7 +174,6 @@ class MongoDaemon(object):
         if self.dbpath:
             import shutil
             shutil.rmtree(dbpath)
-            
         
 # //load an array of records into the specified collection
 # util.load_records_from_list = function(record_list, coll_name) {

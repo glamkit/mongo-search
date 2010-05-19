@@ -30,6 +30,8 @@ def setup_module():
     _daemon = util.MongoDaemon(**_settings)
     _connection = util.get_connection(**_settings)
     _database = _connection['test']
+    _database.drop_collection('items')
+    _database.drop_collection('system.js')    
     _collection = _database['items']
     util.load_all_server_functions(_database)
     util.load_fixture('jstests/_fixture-basic.json', _collection)
