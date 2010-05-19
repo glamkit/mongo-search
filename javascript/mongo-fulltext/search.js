@@ -179,6 +179,9 @@ var search = function (){
         var search = mft.get('search');
         var score = search.scoreRecordAgainstQuery(this, search_terms);
         // potential optimisation: don't return very low scores
+        // to do this optimisation, we'd probably need to adjust the scoring algorithm
+        // to make scores that are absolutely comparable - so normalise against the query vector as well
+        // as against the doc vector
         emit(this._id, score);
     };
     
@@ -395,13 +398,13 @@ var search = function (){
       };
       for (var j = 0; j < record_terms.length; j++) {
         var term = record_terms[j];
-        mft.debug_print(term, "scoring term");
+        // mft.debug_print(term, "scoring term");
         var term_in_query = (term in query_terms_set);
         var term_idf = 0;
         if (term_in_query || full_vector_norm) {
 
           term_idf = getCachedTermIdf(term);
-          mft.debug_print(term_idf, "term_idf");
+          // mft.debug_print(term_idf, "term_idf");
         }
         if (term_in_query) {
             score += term_idf;
