@@ -35,7 +35,7 @@ def get_database(**mongo_params):
     
 def load_all_server_functions(database=None):
     """
-    It would be nice to parse the JS lib in some way to give us a
+    It might be nice to parse the JS lib in some way to give us a
     semblance of control, and also to use the IMHO superior code
     accessors in pymongo.database.Database.system_js. but srsly,
     let's just run the perfectly good js loader we already have
@@ -85,7 +85,42 @@ def get_js_file_contents(relative_script_path):
     js_file = get_js_root()/relative_script_path
     return js_file.text('utf8')
     
+
+class MongoDaemon(object):
+    """
+    encapsulates a local mongo server, presumably for testing purposes.
+    if you set dbpath=None it will avoid clobbering your data by making a temp
+    dir to hold stuff
+    """
     
+    def __init__(self, port=27017, dbpath='/data/db', **kwargs):
+        import subprocess
+        if dbpath is None:
+            import tempfile
+            dbpath = tempfile.mkdtemp()
+        if host:
+            kwargs['host'] = host
+        kwargs['dbpath'] = dbpath
+        self.kwargs = kwargs
+        arg_list = ['mongod']
+        for key, val in kwargs.iteritems():
+            arg_list.append(key)
+            if val: arg_list.append(val)
+        daemon = subprocess.Popen(
+          arg_list,
+          stdout = subprocess.PIPE,
+          stderr = subprocess.STDOUT
+        )
+        self.daemon = daemon
+        
+    def destroy(self):
+        if self.daemon:
+            self.daemon.terminate()
+        if self.dbpath:
+            import shutil
+            shutil.rmtree(dbpath)
+            
+        
 # //load an array of records into the specified collection
 # util.load_records_from_list = function(record_list, coll_name) {
 #     if (typeof coll_name == 'undefined') {
@@ -104,8 +139,4 @@ def get_js_file_contents(relative_script_path):
 #         coll_name = 'test';
 #     }
 #     db[coll_name].drop();
-# };
-# 
-# util.load_server_functions = function() {
-#     load('mongo-fulltext/_load.js');
 # };
