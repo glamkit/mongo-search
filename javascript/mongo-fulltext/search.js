@@ -161,6 +161,7 @@ var search = function (){
          }
         );
         mft.debug_print(res);
+        return res;
     };
 
 

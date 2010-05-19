@@ -30,9 +30,9 @@ def setup_module():
     _daemon = util.MongoDaemon(**_settings)
     _connection = util.get_connection(**_settings)
     _database = _connection['test']
-    _database.drop_collection('items')
-    _database.drop_collection('system.js')    
+    _database['system.js'].remove()    
     _collection = _database['items']
+    _collection.remove()
     util.load_all_server_functions(_database)
     util.load_fixture('jstests/_fixture-basic.json', _collection)
 
@@ -43,8 +43,22 @@ def teardown_module():
         _daemon.destroy()
 
 def test_simple_search():
-    results = list(se.search(u'francesco'))
-    assert len(results) == 1
+    collection = _database['search_works']
+    collection.remove()
+    stdout, stderr = util.load_fixture('jstests/_fixture-basic.json', collection)
+    conf = _database['fulltext_config']
+    conf.insert({
+      'collection_name' : 'search_works',
+      'fields': {
+        'title': 5, 'content': 1},
+      'params': {
+        'full_vector_norm': True}
+    })
+    
+    stdout, stderr = mongo_search.map_reduce_index(collection)
+    
+    # results = list(mongo_search.search(u'fish'))
+    # assert len(results) == 1
 
 # def test_stemming():
 #     analyze = whoosh_searching.search_engine().index.schema.analyzer('content')

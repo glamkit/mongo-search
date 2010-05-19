@@ -8,6 +8,12 @@ script updating and other miscellaneous infrastructure.
 _js_root = ''
 _connection = None
 
+class MongoFullTextError(Exception):
+    pass
+
+class MongoFullTextJSClientError(MongoFullTextError):
+    pass
+
 def load_records_from_list(list, collection):
     pass
 
@@ -78,11 +84,41 @@ def exec_js_from_file(relative_script_path, database=None):
         relative_script_path
       ], cwd=str(js_root),
       stdout = subprocess.PIPE,
-      stderr = subprocess.STDOUT
+      stderr = subprocess.PIPE
     )
     proc.wait()
     return proc.returncode, proc.stdout.read()
 
+def exec_js_from_string(javascript, database=None):
+    """
+    Given a js path, run the javascript in it against the given
+    mongo database 
+    This and open_mongo_shell could possibly be merged
+    """
+    import subprocess
+    if database is None: database = get_default_database()
+    js_root = get_js_root()
+    db_name = database.name
+    host = database.connection.host
+    port = database.connection.port
+    proc = subprocess.Popen(
+      [
+        'mongo',
+        host + ":" + str(port) + "/" + db_name, 
+        '--shell', #can't use --eval since it precedes scripts
+        'mongo-fulltext/_load.js'
+      ], cwd=str(js_root),
+      stdout = subprocess.PIPE,
+      stderr = subprocess.PIPE,
+      stdin = subprocess.PIPE,
+    )
+    stdout, stderr = proc.communicate(javascript +"\n")
+    if proc.returncode == 0:
+        return stdout, stderr
+    else:
+        raise MongoFullTextJSClientError(
+          proc.returncode, stdout, stderr)
+        
 def load_fixture(relative_fixture_path, collection):
     """
     Given a js path, run the javascript in it against the given
@@ -105,9 +141,13 @@ def load_fixture(relative_fixture_path, collection):
       stdout = subprocess.PIPE,
       stderr = subprocess.PIPE
     )
-    proc.wait()
-    return proc.returncode, proc.stdout.read()
-        
+    stdout, stderr = proc.communicate('')
+    if proc.returncode == 0:
+        return stdout, stderr
+    else:
+        raise MongoFullTextJSClientError(
+          proc.returncode, stdout, stderr)
+
 def get_js_file_contents(relative_script_path):
     """
     special python access for the javascript files which are stashed
