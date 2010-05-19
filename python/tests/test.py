@@ -32,7 +32,7 @@ def setup_module():
     _database = _connection['test']
     _collection = _database['items']
     util.load_all_server_functions(_database)
-    util.load_fixture('jstests/_fixture-basic.js', _collection)
+    util.load_fixture('jstests/_fixture-basic.json', _collection)
 
 def teardown_module():
     if _connection:
