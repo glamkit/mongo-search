@@ -5,22 +5,40 @@ actual tests for the mongo-full-text-search
 
 from nose import with_setup
 from nose.tools import assert_true, assert_equals, assert_raises
-from ..tests import simplefixture
 from mongofulltextsearch import mongo_search, util
 
-_daemon = util
+_daemon = None
+_settings = {
+    'dbpath': None, #i.e. a temporary folder
+    'port': 29017,
+    'host': 'localhost'
+}
+_connection = None
+_database = None
+_collection = None
+
 def setup_module():
     """
     setup a test collection on a server
     set up, then index, content.
     """
-    from collection.tests import simplefixture
-    simplefixture.setup_fixture()
-    setup_fixture()
+    global _daemon
+    global _connection
+    global _database
+    global _collection
+    
+    _daemon = util.MongoDaemon(**_settings)
+    _connection = util.get_connection(**_settings)
+    _database = _connection['test']
+    _collection = _database['items']
+    util.load_all_server_functions(_database)
+    util.load_fixture('jstests/_fixture-basic.js', _collection)
 
 def teardown_module():
-    simplefixture.teardown_fixture()
-    teardown_fixture()
+    if _connection:
+        _connection.disconnect()
+    if _daemon:
+        _daemon.destroy()
 
 def test_simple_search():
     se = whoosh_searching.search_engine()
