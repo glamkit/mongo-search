@@ -36,7 +36,10 @@ def get_connection(**settings):
             settings['port']
         )
     return _connection
-    
+
+def get_default_database(dbname='test'):
+    return get_connection()[dbname]
+
 def get_js_root():
     global _js_root
     if not _js_root:
@@ -60,14 +63,14 @@ def exec_js_from_file(relative_script_path, database=None):
     """
     Given a js path, run the javascript in it against the given
     mongod database instance
-    How does this work with "load"?
+    This and open_mongo_shell could/should be merged
     """
     import subprocess
-    if database is None: database = get_connection()['test']
+    if database is None: database = get_default_database()
     js_root = get_js_root()
     db_name = database.name
-    host = database.connection.HOST
-    port = database.connection.PORT
+    host = database.connection.host
+    port = database.connection.port
     proc = subprocess.Popen(
       [
         'mongo',
@@ -79,7 +82,33 @@ def exec_js_from_file(relative_script_path, database=None):
     )
     proc.wait()
     return proc.returncode, proc.stdout.read()
-    
+
+def load_fixture(relative_fixture_path, collection):
+    """
+    Given a js path, run the javascript in it against the given
+    mongod database instance
+    """
+    import subprocess
+    database = collection.database
+    js_root = get_js_root()
+    db_name = database.name
+    host = database.connection.host
+    port = database.connection.port
+    proc = subprocess.Popen(
+      [
+        'mongoimport',
+        '--host', host,
+        '--port', str(port),
+        '--db', db_name,
+        '--collection', collection.name,
+        '--file', relative_fixture_path
+      ], cwd=str(js_root),
+      stdout = subprocess.PIPE,
+      stderr = subprocess.PIPE
+    )
+    proc.wait()
+    return proc.returncode, proc.stdout.read()
+        
 def get_js_file_contents(relative_script_path):
     """
     special python access for the javascript files which are stashed
@@ -88,6 +117,24 @@ def get_js_file_contents(relative_script_path):
     # /'mongo-fulltext'
     js_file = get_js_root()/relative_script_path
     return js_file.text('utf8')
+
+def open_mongo_shell(database=None):
+    """
+    Open an interactive mongo shell in the given db
+    """
+    import subprocess
+    if database is None: database = get_default_database()
+    db_name = database.name
+    host = database.connection.host
+    port = database.connection.port
+    proc = subprocess.Popen(
+      [
+        'mongo',
+        host + ":" + str(port) + "/" + db_name,
+        '--shell'
+      ], cwd=str(get_js_root()),
+    )
+    proc.wait()
 
 class MongoDaemon(object):
     """
