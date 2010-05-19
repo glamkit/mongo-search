@@ -28,9 +28,24 @@ search_result = search.mapReduceNiceSearch("search_works", "fish");
 // print(result, "Search result for 'fish'");
 
 assert.eq(search_result.toArray(), [
-
-    { "_id" : 1, "value" : { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory", "score" : 0.6757751801802742 } },
-    { "_id" : 3, "value" : { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers", "score" : 0.5622789375752065 } }],
-    "search_works_1"
+        {
+                "_id" : 1,
+                "value" : {
+                        "_id" : 1,
+                        "title" : "fish",
+                        "content" : "groupers like John Dory",
+                        "score" : 1.6666666666666667
+                }
+        },
+        {
+                "_id" : 3,
+                "value" : {
+                        "_id" : 3,
+                        "title" : "dogs & fish",
+                        "content" : "whippets kick groupers",
+                        "score" : 1.386750490563073
+                }
+        }
+  ], "search_works_1"
 );
 
