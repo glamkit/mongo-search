@@ -98,8 +98,6 @@ var search = function (){
         mft.debug_print(res);
     };
     
-    
-    
     search._termScoreMap = function() {
       var search = mft.get('search');
       mft.debug_print("Executing _termScoreMap with:");
@@ -164,9 +162,14 @@ var search = function (){
         return res;
     };
 
-
-
-    
+    //
+    // This JS function should never be called, except from javascript
+    // clients. See note at search.mapReduceSearch
+    //
+    search.mapReduceIndexTheLot = function(coll_name) {
+        search.mapReduceIndex(coll_name);
+        search.mapReduceTermScore(coll_name);
+    }
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually

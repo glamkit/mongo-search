@@ -19,7 +19,7 @@ import util
 
 def map_reduce_index(collection):
     return util.exec_js_from_string(
-      "mft.get('search').mapReduceTermScore('%s');" % collection.name,
+      "mft.get('search').mapReduceIndexTheLot('%s');" % collection.name,
       collection.database)
 
 def map_reduce_search(collection, search_query_string):

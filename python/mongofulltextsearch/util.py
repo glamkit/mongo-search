@@ -121,8 +121,9 @@ def exec_js_from_string(javascript, database=None):
         
 def load_fixture(relative_fixture_path, collection):
     """
-    Given a js path, run the javascript in it against the given
-    mongod database instance
+    Given a json fixture path, import the objects in it to the given collection.
+    Note that the json here is not true json, but json in the mongo sense, one 
+    object/document per line, linefeed- rather than comma-separated
     """
     import subprocess
     database = collection.database

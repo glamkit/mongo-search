@@ -47,6 +47,7 @@ def test_simple_search():
     collection.remove()
     stdout, stderr = util.load_fixture('jstests/_fixture-basic.json', collection)
     conf = _database['fulltext_config']
+    conf.remove()
     conf.insert({
       'collection_name' : 'search_works',
       'fields': {
