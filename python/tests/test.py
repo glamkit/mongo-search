@@ -58,7 +58,7 @@ def test_simple_search():
     
     stdout, stderr = mongo_search.map_reduce_index(collection)
     
-    # results = list(mongo_search.search(u'fish'))
+    results = list(mongo_search.map_reduce_search(u'fish'))
     # assert len(results) == 1
 
 # def test_stemming():
