@@ -1,5 +1,5 @@
 "use strict";
-mft.DEBUG = true;
+// mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -16,10 +16,14 @@ var search = function (){
       EXTRACTED_TERMS_FIELD: '_extracted_terms',
       INDEX_NAMESPACE: 'search_.indexes',
       RESULT_NAMESPACE: 'search_.results',
+
+      TERM_SCORE_NAMESPACE: 'search_.termscores',
       SEARCH_ALL_PSEUDO_FIELD: '$search', // magic "field name" that specifies we want a fulltext search 
                 // (abusing the '$' notation somewhat, which is often for search operators)
       SEARCH_ANY_PSEUDO_FIELD: '$searchany', // magic "field name" that specifies we want a fulltext search matching any, not all
-  
+      
+      MIN_TERM_SCORE: 0.0, // threshold below which we don't add the score on - set to 0 to include all terms
+      
       // WORKHORSE VARS:
       _STEM_FUNCTION: null,
       _TOKENIZE_FUNCTION: null
@@ -93,7 +97,75 @@ var search = function (){
         );
         mft.debug_print(res);
     };
+    
+    
+    
+    search._termScoreMap = function() {
+      var search = mft.get('search');
+      mft.debug_print("Executing _termScoreMap with:");
+      mft.debug_print(this);
+      emitted_terms = {};
+      this.value[search.EXTRACTED_TERMS_FIELD].forEach( function(term) {
+        if (! (term in emitted_terms)) { // don't want duplicates for any term in a doc
+          emitted_terms[term] = true;
+          emit(term, 1);
+        }
+      });
+    };
+    
+    search._termScoreReduce = function(key, valueArray) {
+      var sum = 0;
+      mft.debug_print("Executing _termScoreReduce with key:");
+      mft.debug_print(key);
+      mft.debug_print("and value:");
+      mft.debug_print(valueArray);
+      valueArray.forEach(function(x) {
+        sum += x;
+      });
+      mft.debug_print("returning:");      
+      mft.debug_print(sum);
+      return sum;
+    };
+    
+    search._termScoreFinalize = function(key, termSum) {
+      mft.debug_print("Executing _termScoreFinalize with key:");
+      mft.debug_print(key);
+      mft.debug_print("and value:");
+      mft.debug_print(termSum);
+      mft.debug_print(num_docs_in_coll, "num_docs_in_coll");
+      return Math.log(num_docs_in_coll) - Math.log(termSum);
+    };
 
+
+    //
+    // This JS function should never be called, except from javascript
+    // clients. See note at search.mapReduceSearch
+    //
+    search.mapReduceTermScore = function(coll_name) {
+        // full_text_index a given coll
+        var search = mft.get('search'); //not guaranteed to have been done!
+        var index_coll_name = search.indexName(coll_name);
+        var term_score_name = search.termScoreName(coll_name);
+        mft.debug_print(index_coll_name, "index_coll_name");
+        mft.debug_print(term_score_name, "term_score_name");
+        var res = db.runCommand(
+          { mapreduce : index_coll_name,
+            map : search._termScoreMap,
+            reduce : search._termScoreReduce,
+            finalize: search._termScoreFinalize,
+            out : term_score_name,
+            verbose : true,
+            scope: {
+                num_docs_in_coll: db[coll_name].find().count()
+            }
+         }
+        );
+        mft.debug_print(res);
+    };
+
+
+
+    
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
@@ -156,7 +228,7 @@ var search = function (){
         params.query[("value."+search.EXTRACTED_TERMS_FIELD)] = { $all: search_query_terms };
         
         if (keep_results) {
-            params.out = search.encodeQueryString(search_query_terms);
+            params.out = search.resultName(coll_name, search_query_terms);
         }
         
         var res = db.runCommand(params);
@@ -252,9 +324,15 @@ var search = function (){
     search.resultName = function(coll_name, search_terms) {
         //calculate the collection name for the index of a given collection
         var search = mft.get('search');
-        return search.RESULT_NAMESPACE + "." + coll_name +  search.encodeQueryString(search_terms);
+        return search.RESULT_NAMESPACE + "." + coll_name +  "." + search.encodeQueryString(search_terms);
     };
     
+    search.termScoreName = function(coll_name) {
+        //calculate the collection name for the term scores (probably IDF) of a given collection
+        var search = mft.get('search');
+        return search.TERM_SCORE_NAMESPACE + "." + coll_name;
+    };
+        
     search.indexedFieldsAndWeights = function(coll_name) {
       // we expect a special collection named 'fulltext_config', with items having elems 'collection_name', 'fields', and 'params'
       // with 'fields' having keys being the field name, and the values being the weight. e.g.:  
@@ -284,63 +362,6 @@ var search = function (){
       return collection_conf.params;
     };
     
-    // search.search = function(coll_name, query_obj) {
-    //   // check for $search member on query_obj
-    //   // if it doesn't exist, pass through to regular .find
-    //   // if it does, parse the ft query string, and add the appropriate filter
-    //   // clause to the non-ft-search components, execute that, then
-    //   // score every remaining document, and put those sorted IDs and scores in a record in 
-    //   // a private collection (hashed by the whole query obj, which we can check next time around)
-    //   // then iterate through the IDs and scores and return the corresponding records with the IDs
-    //   // attached to them, in a way that emulates a cursor object.
-    //   var search_query_string;
-    //   var require_all;
-    //   if (query_obj[search.SEARCH_ALL_PSEUDO_FIELD]) {
-    //     search_query_string = query_obj[search.SEARCH_ALL_PSEUDO_FIELD];
-    //     require_all = true;
-    //   } else if (query_obj[search.SEARCH_ALL_PSEUDO_FIELD]) {
-    //     search_query_string = query_obj[search.SEARCH_ANY_PSEUDO_FIELD];
-    //     require_all = false;
-    //   } else {
-    //     throw "No search term in search query!"; // no need to call search, you chump
-    //   }
-    //   mft.debug_print("query string is " + search_query_string);
-    //   var query_terms = search.processQueryString(search_query_string);
-    //   mft.debug_print("query terms is " + (query_terms.join(',') + " with length " + query_terms.length));
-    //   query_obj[search.EXTRACTED_TERMS_FIELD] = search.filterArg(coll_name, query_terms, require_all);
-    //   if (require_all) {
-    //     delete(query_obj[search.SEARCH_ALL_PSEUDO_FIELD]); // need to get rid f pseudo args, as they stop .find() from returning anything
-    //   } else {
-    //     delete(query_obj[search.SEARCH_ANY_PSEUDO_FIELD]);
-    //   }
-    //   mft.debug_print("query_obj=" + tojson(query_obj));
-    //   var filtered = db[coll_name].find(query_obj);
-    //   var scores_and_ids = [];
-    //   mft.debug_print("num recs found: " + filtered.count());
-    //   filtered.forEach(
-    //     function(record) {
-    //       var score = search.scoreRecordAgainstQuery(coll_name, record, query_terms);
-    //       scores_and_ids.push([score, record._id]);
-    //     });
-    //   return new search.SearchPseudoCursor(coll_name, scores_and_ids);
-    //   // scores_and_ids.sort(search.sortNumericFirstDescending); // need to provide a custom search function anyway, as JS does sorts alphabetically
-    //   // var scored_records = [];
-    //   // // this is the dodgy way - need to do a cursor in the future
-    //   // for (var i = 0; i < scores_and_ids.length; i++) {
-    //   //   var score_and_id = scores_and_ids[i];
-    //   //   record = db[coll_name].findOne({_id: score_and_id[1]});
-    //   //   record.score = score_and_id[0];
-    //   //   scored_records.push(record);
-    //   // }
-    //   // return scored_records;
-    // };
-    // 
-    // 
-    // search.sortNumericFirstDescending = function(a, b) {
-    //   
-    //   return b[0] - a[0];
-    // };
-    // 
     
     search.scoreRecordAgainstQuery = function(record, query_terms) {
       mft.debug_print("in scoreRecordAgainstQuery with coll_name: ");
@@ -349,21 +370,20 @@ var search = function (){
       mft.debug_print(record);
       var search = mft.get("search");
       var record_terms = record.value[search.EXTRACTED_TERMS_FIELD];
-      mft.debug_print("record=" + record);
       var query_terms_set = {};
       var score = 0.0;
       for (var i = 0; i < query_terms.length; i++) {
         query_terms_set[query_terms[i]] = true; // to avoid needing to iterate
       }
       mft.debug_print("query_terms_set=" + tojson(query_terms_set));
-
-      var idf_cache = {};
+      
+      if (typeof idf_cache === 'undefined') {
+        idf_cache = {}
+      }
       var record_vec_sum_sq = 0;
       mft.debug_print("getParams");
       mft.debug_print(search.getParams(coll_name));
-      mft.debug_print("getting full_vector_norm");
-      // var full_vector_norm = search.getParams(coll_name).full_vector_norm;
-      var full_vector_norm = 0;
+      var full_vector_norm = 1;
       var getCachedTermIdf = function(x) {
         var term_idf = idf_cache[term];
         if (term_idf === undefined) {
@@ -374,12 +394,13 @@ var search = function (){
       };
       for (var j = 0; j < record_terms.length; j++) {
         var term = record_terms[j];
+        mft.debug_print(term, "scoring term");
         var term_in_query = (term in query_terms_set);
         var term_idf = 0;
         if (term_in_query || full_vector_norm) {
-            //begin Dan IDF Hack
-            // term_idf = getCachedTermIdf(term);
-            term_idf = 1;
+
+          term_idf = getCachedTermIdf(term);
+          mft.debug_print(term_idf, "term_idf");
         }
         if (term_in_query) {
             score += term_idf;
@@ -392,45 +413,19 @@ var search = function (){
       // could probably take some shortcuts here w/o too much loss of accuracy
     };
 
-    search.calcTermIdf = function(coll_name, term) { //or should this be getTermIdf?
-      
-      //
-      // this currently doesn't have any caching smarts.
-      // we could cache the IDF for each doc in the collection, but that would make updating more complicated
-      // for the moment I'll gamble on mongodb being quick enough to make it not a problem
-      // 
-      var term_filter_obj = {};
-      term_filter_obj[search.EXTRACTED_TERMS_FIELD] = search.filterArg(coll_name, [term], true);
-      var term_count = db[coll_name].find(term_filter_obj).count();
-      if (term_count === 0) { return 0.0; }
-      var num_docs = db[coll_name].find().count(); // TODO: memoize, or find a better method for getting this
-      return Math.log(num_docs) - Math.log(term_count);
-    };
-    
-
     search.getTermIdf = function(coll_name, term) {
-      var score_record = db.fulltext_term_scores.findOne({collection_name: coll_name, term: term});
+      var search = mft.get("search");
+      var score_record = db[search.termScoreName(coll_name)].findOne({_id: term});
+      mft.debug_print(search.termScoreName(coll_name), "term_score_coll_name");
+      mft.debug_print(term, "term");
       mft.debug_print(score_record, "score_record");
       if (score_record === null) {
         mft.warning_print("no score cached for term " + term);
         return 0.0;
       } else {
-        if (score_record.dirty) {
-          mft.warning_print("score for term " + term + " may be incorrect");
-        }
-        return score_record.score;
+        var score = score_record.value
+        return score > search.MIN_TERM_SCORE ? score : 0.0;
       }
-    };
-
-    search.calcAndStoreTermIdf = function(coll_name, term) {
-      idf_score = search.calcTermIdf(coll_name, term);
-      // print("DEBUG: calculated IDF for term " + term + " as " + idf_score);
-      db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {$set: {score: idf_score, dirty: false}}, {upsert: true});
-    };
-
-    search.storeEmptyTermIdf = function(coll_name, term) {
-      // adds the term into the index if it's not already there, but marks it as dirty
-      db.fulltext_term_scores.update({collection_name: coll_name, term: term}, {$set: {dirty: true}}, {upsert: true});
     };
 
     search.filterArg = function(coll_name, query_terms, require_all) {
@@ -454,83 +449,14 @@ var search = function (){
     search.encodeQueryString = function(processed_query_string) {
         return processed_query_string.join('__');
     };
-    
-    // search.indexAll = function(coll_name) {
-    //   
-    //   mft.debug_print("indexing all records in " + coll_name);
-    //   var cur = db[coll_name].find();
-    //   indexed_fields = search.indexedFieldsAndWeights(coll_name);
-    //   mft.debug_print("indexed fields and weights: " + tojson(indexed_fields));
-    //   recs_indexed = 0;
-    //   search.checkTermScoreIndex(coll_name);
-    //   cur.forEach(function(x) { 
-    //     search.indexSingleRecord(coll_name, x, indexed_fields, false); 
-    //     recs_indexed++;
-    //     if (recs_indexed % 100 === 0) {
-    //       print(recs_indexed);
-    //     }
-    //   });
-    //   search.checkExtractedTermIndex(coll_name); // maybe delete this before populating to make it quicker?
-    //   mft.debug_print("Calculating IDF scores");
-    //   search.fillDirtyIdfScores(coll_name);
-    // };
-
-    search.checkTermScoreIndex = function(coll_name) {
-      db.fulltext_term_scores.ensureIndex({collection_name: 1, term: 1});
-    };
-
-    search.checkExtractedTermIndex = function(coll_name) {
-      ext_terms_idx_criteria = [];
-      ext_terms_idx_criteria[search.EXTRACTED_TERMS_FIELD] = 1;
-      db[coll_name].ensureIndex(ext_terms_idx_criteria);
-    };
-
-    // search.indexSingleRecord = function(coll_name, record, indexed_fields, calculate_idf) {
-    //   if (typeof indexed_fields === 'undefined') {// we can pass this in to save CPU in bulk indexing, but might not
-    // 
-    //     indexed_fields = search.indexedFieldsAndWeights(coll_name);
-    //   }
-    //   if (typeof calculate_idf === 'undefined') {
-    //     calculate_idf = true; // assume we're just indexing this one doc - so we probably want to cal at the time
-    //   }
-    //   var all_extracted_terms = [];
-    //   for (var field in indexed_fields) {    
-    //     all_extracted_terms = all_extracted_terms.concat(
-    //        search.extractFieldTokens(coll_name, record, field, indexed_fields[field])
-    //     );
-    //   }
-    //   record[search.EXTRACTED_TERMS_FIELD] = all_extracted_terms;
-    //   // mft.debug_print("record is now: " + tojson(record));
-    // 
-    //   db[coll_name].save(record);
-    //   if (calculate_idf) { // if we're doing just one doc
-    //     all_extracted_terms.forEach(function(x) {search.calcAndStoreTermIdf(coll_name, x);});
-    //   } else { // we're doing it in bulk, so defer calcs until later
-    //     all_extracted_terms.forEach(function(x) {search.storeEmptyTermIdf(coll_name, x);});
-    //   }
-    // };
-    // 
-    // 
-    // search.indexSingleRecordFromId = function(coll_name, record_id) {
-    //   
-    //   var rec = db[coll_name].findOne({'_id': record_id});
-    //   search.indexSingleRecord(coll_name, rec);
-    // };
-
-    search.fillDirtyIdfScores = function(coll_name) {
-      search.checkExtractedTermIndex(coll_name);
-      var cur = db.fulltext_term_scores.find({collection_name: coll_name, dirty: true});
-      cur.forEach( function(x) { search.calcAndStoreTermIdf(coll_name, x.term); });
-    };
-
     search.extractFieldTokens = function(record, field, upweighting) {
       // extracts tokens in stemmed and tokenised form and upweights them as specified in the config if necessary
       var contents = record[field];
-      if (typeof contents == 'object') {
-        contents = contents.join(" ");
-      }
       if (!contents) { // eg the field doesn't exist on this particular record, we silently fail
         return;
+      }
+      if (typeof contents == 'object') {
+        contents = contents.join(" ");
       }
       var processed_contents = search.stemAndTokenize(contents);  
       if (upweighting == 1) { // special -casing for the common case - may be slightly quicker avoiding the array copy

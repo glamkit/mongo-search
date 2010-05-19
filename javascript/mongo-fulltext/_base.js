@@ -32,7 +32,12 @@ mft.debug_print = function(msg, label) {
         if (label) {
             print(label + ": ");
         }
-        if (typeof mft != 'undefined') {
+
+        if ((typeof msg != 'undefined')) {
+            if ( msg && msg.constructor === null) { // this is making mongo's tojson() choke down the line with V8
+              print("NO CONSTRUCTOR");
+              return;
+            }
             print(tojson(msg));
         }
     }
