@@ -10,7 +10,7 @@ search.mapReduceSearch
 search.mapReduceNiceSearch
 search.stemAndTokenize (and thus search.stem and search.tokenizeBasic )
 
-Optional:
+Optional (if you don't mind calling blocking execution server-wide)
 search.processQueryString
 search.encodeQueryString
 """
