@@ -15,8 +15,18 @@ Optional (if you don't mind calling blocking execution server-wide)
 search.processQueryString
 search.encodeQueryString
 """
+import re
+
 import pymongo
+from pymongo.code import Code
+
 import util
+import porter
+
+TOKENIZE_BASIC_RE = re.compile(r"\b(\w[\w'-]*\w|\w)\b") #this should match the RE in use on the server
+INDEX_NAMESPACE = 'search_.indexes'
+
+
 
 def map_reduce_index(collection):
     """Execute all relevant bulk indexing functions
@@ -34,7 +44,22 @@ def map_reduce_search(collection, search_query_string):
     we can cheat with the indexing, but this has to be a full re-implementation
     of mapreduce functions on the javascript side. Woo.
     """
-    pass
+    search_query_terms = process_query_string(search_query_string)
+    index_coll_name = index_name(collection)
+    params = {
+        'map': Code("function() { mft.get('search')._searchMap() }"),
+        'reduce': Code("function(k, v) { mft.get('search')._searchReduce(k, v) }"),
+        'scope': {'search_terms': search_query_terms, 'coll_name': collection.name},
+        'full_response': True
+    }
+    
+    #   lazily assuming "$all" (i.e. AND search) 
+    params['query'] = {'value._extracted_terms': {'$all': search_query_terms}}
+    res = collection.map_reduce(**params)
+    res_coll = pymongo.database.Collection(collection.database, res['result'])
+    res_coll.ensure_index([('value.score', pymongo.ASCENDING)]) # can't demand backgrounding in python seemingly?
+    return res_coll
+    
     # search.mapReduceSearch = function(coll_name, search_query_string, keep_results) {
     #       // searches a given coll's index
     #       // return a coll name containing the sorted results - permanent
@@ -131,16 +156,22 @@ def map_reduce_nice_search_by_query(collection, search_coll_name, query_obj):
 def map_reduce_nice_search_by_ids(collection, search_coll_name, id_list):
     pass
     
-def stem_and_tokenize(phrase):
-    pass
+def process_query_string(query_string):
+    return sorted(stem_and_tokenize(query_string))
 
-def stem(word):
+def stem_and_tokenize(phrase):
+    return stem(tokenize(phrase.lower()))
+
+def stem(tokens):
     """
     now we could do this in python. We coudl also call the same function that
     exists server-side, or even run an embedded javascript interpreter. See
     http://groups.google.com/group/mongodb-user/browse_frm/thread/728c4376c3013007/b5ac548f70c8b3ca
     """
-    pass
+    return [porter.stem(tok) for tok in tokens]
 
 def tokenize(phrase):
-    pass
+    return [m.group(0) for m in TOKENIZE_BASIC_RE.finditer(phrase)]
+
+def index_name(collection):
+    return INDEX_NAMESPACE + '.' + collection.name
