@@ -45,7 +45,6 @@ def map_reduce_search(collection, search_query_string):
     of mapreduce functions on the javascript side. Woo.
     """
     search_query_terms = process_query_string(search_query_string)
-    index_coll_name = index_name(collection)
     params = {
         'map': Code("function() { mft.get('search')._searchMap() }"),
         'reduce': Code("function(k, v) { mft.get('search')._searchReduce(k, v) }"),
@@ -55,7 +54,8 @@ def map_reduce_search(collection, search_query_string):
     
     #   lazily assuming "$all" (i.e. AND search) 
     params['query'] = {'value._extracted_terms': {'$all': search_query_terms}}
-    res = collection.map_reduce(**params)
+    db = collection.database
+    res = db[index_name(collection)].map_reduce(**params)
     res_coll = pymongo.database.Collection(collection.database, res['result'])
     res_coll.ensure_index([('value.score', pymongo.ASCENDING)]) # can't demand backgrounding in python seemingly?
     return res_coll
