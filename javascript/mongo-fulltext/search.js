@@ -167,22 +167,27 @@ var search = function (){
         search.mapReduceIndex(coll_name);
         search.mapReduceTermScore(coll_name);
     }
+        
+    search._searchMap = function() {
+      mft.get('search')._searchMapExt(this);
+    }
+    
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //
-    search._searchMap = function() {
+    search._searchMapExt = function(rec) {
         mft.debug_print("in searchMap with doc: ");
-        mft.debug_print(this);
+        mft.debug_print(rec);
         mft.debug_print("and search terms: ");
         mft.debug_print(search_terms);
         var search = mft.get('search');
-        var score = search.scoreRecordAgainstQuery(this, search_terms);
+        var score = search.scoreRecordAgainstQuery(rec, search_terms);
         // potential optimisation: don't return very low scores
         // to do this optimisation, we'd probably need to adjust the scoring algorithm
         // to make scores that are absolutely comparable - so normalise against the query vector as well
         // as against the doc vector
-        emit(this._id, score);
+        emit(rec._id, score);
     };
     
     //
@@ -467,7 +472,7 @@ var search = function (){
     search.stemAndTokenize = function(field_contents) {
       mft.debug_print("stem'n'tokenising: ");
       mft.debug_print(field_contents);
-      return search.stem(search.tokenize(field_contents.toLowerCase())); //TODO: actually stem as promised
+      return search.stem(search.tokenize(field_contents.toLowerCase()));
     };
 
     search.tokenizeBasic = function(field_contents) {

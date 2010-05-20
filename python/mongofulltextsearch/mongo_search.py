@@ -46,7 +46,7 @@ def map_reduce_search(collection, search_query_string):
     """
     search_query_terms = process_query_string(search_query_string)
     params = {
-        'map': Code("function() { mft.get('search')._searchMap() }"),
+        'map': Code("function() { mft.get('search')._searchMapExt(this) }"),
         'reduce': Code("function(k, v) { mft.get('search')._searchReduce(k, v) }"),
         'scope': {'search_terms': search_query_terms, 'coll_name': collection.name},
         'full_response': True
