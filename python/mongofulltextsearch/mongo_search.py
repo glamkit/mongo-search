@@ -6,6 +6,7 @@ library, plus anything else that we do not wish to block the server upon
 executing. That is:
 
 search.mapReduceIndex
+search.mapReduceTermScore
 search.mapReduceSearch
 search.mapReduceNiceSearch
 search.stemAndTokenize (and thus search.stem and search.tokenizeBasic )
@@ -18,6 +19,12 @@ import pymongo
 import util
 
 def map_reduce_index(collection):
+    """Execute all relevant bulk indexing functions
+    ie:
+        mapReduceIndex , which extracts indexed terms and puts them in a new collection
+        mapReduceTermScore , which creates a table of scores for each term.
+    which is covered by mapReduceIndexTheLot
+    """
     return util.exec_js_from_string(
       "mft.get('search').mapReduceIndexTheLot('%s');" % collection.name,
       collection.database)
