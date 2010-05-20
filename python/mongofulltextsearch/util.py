@@ -50,7 +50,7 @@ def get_js_root():
     global _js_root
     if not _js_root:
         import path
-        here = path.path(__file__).abspath()
+        here = path.path(__file__).realpath()
         _js_root = here.parent.parent.parent/'javascript'
     return _js_root
 
