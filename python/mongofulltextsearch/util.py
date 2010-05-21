@@ -181,6 +181,8 @@ class MongoDaemon(object):
     encapsulates a local mongo server, presumably for testing purposes.
     if you set dbpath=None it will avoid clobbering your data by making a temp
     dir to hold stuff
+    
+    TODO: support with_statement Context stuff.
     """
     
     def __init__(self, dbpath='/data/db', **settings):
