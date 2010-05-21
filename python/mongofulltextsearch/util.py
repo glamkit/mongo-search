@@ -190,10 +190,11 @@ class MongoDaemon(object):
         if dbpath is None:
             import tempfile
             dbpath = tempfile.mkdtemp()
-        if settings.has_key('host'):
+        if 'host' in settings:
             #specified w/ different spelling on client and server
             settings['bind_ip'] = settings['host']
-        if settings.has_key('db'):
+            del(settings['host'])
+        if 'db' in settings:
             #only relevant for the client
             del(settings['db'])
         settings['dbpath'] = dbpath
