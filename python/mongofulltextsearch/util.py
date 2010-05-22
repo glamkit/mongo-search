@@ -185,7 +185,7 @@ class MongoDaemon(object):
     TODO: support with_statement Context stuff.
     """
     
-    def __init__(self, dbpath='/data/db', **settings):
+    def __init__(self, dbpath='/data/db', capture_output=False, **settings):
         import subprocess
         if dbpath is None:
             import tempfile
@@ -204,11 +204,17 @@ class MongoDaemon(object):
             arg_list.append('--' + key)
             if val is not None: arg_list.append(str(val))
         # don't share stdout - see http://stackoverflow.com/questions/89228/how-to-call-external-command-in-python/2251026#2251026
+        if capture_output:
+            subproc_args = {
+              'stdout': subprocess.PIPE,
+              'stderr': subprocess.PIPE,
+              'stdin': subprocess.PIPE
+            }
+        else:
+            subproc_args = {}
         daemon = subprocess.Popen(
           arg_list,
-          stdout = subprocess.PIPE,
-          stderr = subprocess.PIPE,
-          stdin = subprocess.PIPE
+          **subproc_args
         )
         self.daemon = daemon
         
