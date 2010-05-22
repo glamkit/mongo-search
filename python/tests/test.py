@@ -9,7 +9,7 @@ from mongofulltextsearch import mongo_search, util
 
 _daemon = None
 _settings = {
-    'dbpath': None, #i.e. a temporary folder
+    'dbpath': util.MongoDaemon.TEST_DIR, #i.e. a temporary folder, system-wide
     'port': 29017,
     'host': 'localhost'
 }

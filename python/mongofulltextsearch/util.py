@@ -184,6 +184,9 @@ class MongoDaemon(object):
     
     TODO: support with_statement Context stuff.
     """
+    class TEST_DIR:pass
+    class PRIVATE_TMP_DIR:pass
+    
     def __getattr__(self, attribute):
         """
         instead of outright subclassing subprocess.POpen we provide convenince
@@ -194,9 +197,19 @@ class MongoDaemon(object):
     def __init__(self, dbpath='/data/db', capture_output=False, **settings):
         import subprocess
         import time
-        if dbpath is None:
-            import tempfile
+        import tempfile
+        
+        if dbpath is self.PRIVATE_TMP_DIR:
             dbpath = tempfile.mkdtemp()
+        elif dbpath is self.TEST_DIR:
+            #TODO: find the path prefic in an OS-sensitive version
+            dbpath = '/tmp/mongodbtest'
+            import os
+            try:
+                os.makedirs(dbpath)
+            except OSError:
+                #this is so stupid - what if we don't have write perms, eh?
+                pass
         if 'host' in settings:
             #specified w/ different spelling on client and server
             settings['bind_ip'] = settings['host']
