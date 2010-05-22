@@ -17,27 +17,39 @@ _connection = None
 _database = None
 _collection = None
 
-def setup_module_and_fixture():
+def setup_module():
     """
     Instantiate a new mongo daemon and corresponding connection and 
     then insert the appropriate test fixture.
+    """
+    daemon = _setup_daemon()
+    _connection = util.get_connection(**_settings)
+    _setup_fixture(_connection)
+    
+def _setup_daemon():
+    """
+    Instantiate a new mongo daemon and corresponding connection.
     """
     global _daemon
     global _connection
     
     _daemon = util.MongoDaemon(**_settings)
-    _connection = util.get_connection(**_settings)
-    setup_fixture(_connection)
+    return _daemon
 
-def setup_fixture(connection):
+def _setup_fixture(connection=None):
     """
     setup a test collection on a server
     set up, then index, content.
+    
+    TODO: purge *all* collections from db to avoid clashes
     
     Call directly if you don't want to use the one-off test server
     """
     global _collection
     global _database
+    global _connection
+    
+    if connection is None: connection = _connection
     
     _database = connection['test']
     _database['system.js'].remove()    
