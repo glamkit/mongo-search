@@ -45,18 +45,14 @@ def map_reduce_search(collection, search_query_string):
     of mapreduce functions on the javascript side. Woo.
     """
     search_query_terms = process_query_string(search_query_string)
-    params = {
-        'map': Code("function() { mft.get('search')._searchMapExt(this) }"),
-        'reduce': Code("function(k, v) { mft.get('search')._searchReduce(k, v) }"),
-        'scope': {'search_terms': search_query_terms, 'coll_name': collection.name},
-        'full_response': True
-    }
-    
+    map_js = Code("function() { mft.get('search')._searchMapExt(this) }")
+    reduce_js = Code("function(k, v) { return mft.get('search')._searchReduce(k, v) }")
+    scope =  {'search_terms': search_query_terms, 'coll_name': collection.name}
     #   lazily assuming "$all" (i.e. AND search) 
-    params['query'] = {'value._extracted_terms': {'$all': search_query_terms}}
+    query_obj = {'value._extracted_terms': {'$all': search_query_terms}}
     db = collection.database
-    res = db[index_name(collection)].map_reduce(**params)
-    res_coll = pymongo.database.Collection(collection.database, res['result'])
+    res = db[index_name(collection)].map_reduce(map_js, reduce_js, full_response=True, scope=scope, query=query_obj)
+    res_coll = collection.database[res['result']]
     res_coll.ensure_index([('value.score', pymongo.ASCENDING)]) # can't demand backgrounding in python seemingly?
     return res_coll
     
@@ -104,10 +100,16 @@ def map_reduce_search(collection, search_query_string):
     #       return res;
     #   };
 
-def map_reduce_nice_search_by_query(collection, search_coll_name, query_obj):
+def map_reduce_nice_search_by_query(collection, search_coll_name, query_obj=None):
     """
     Yep, this also ahs to be a re-implementation of the javascript function.
     """
+    
+    id_list = collection.find(query_obj, {_id: pymongo.ASCENDING}) if query_obj else None
+    return map_reduce_nice_search_by_ids(collection, search_coll_name, id_list)
+
+
+def map_reduce_nice_search_by_ids(collection, search_coll_name, id_list):
     pass
     # search.mapReduceNiceSearch = function(coll_name, search_coll_name, query_obj) {
     #     // takes a search collection and a query dict and returns a temporary
@@ -152,9 +154,8 @@ def map_reduce_nice_search_by_query(collection, search_coll_name, query_obj):
     #     return db[res.result].find().sort({"value.score": -1});
     # };
     
-
-def map_reduce_nice_search_by_ids(collection, search_coll_name, id_list):
-    pass
+def map_reduce_nice_search(collection, search_coll_name):
+    return map_reduce_nice_search_by_ids(collection, search_coll_name, None)
     
 def process_query_string(query_string):
     return sorted(stem_and_tokenize(query_string))
