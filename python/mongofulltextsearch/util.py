@@ -184,7 +184,13 @@ class MongoDaemon(object):
     
     TODO: support with_statement Context stuff.
     """
-    
+    def __getattr__(self, attribute):
+        """
+        instead of outright subclassing subprocess.POpen we provide convenince
+        accessors on this wrapper.
+        """
+        return getattr(self.daemon, attribute)
+        
     def __init__(self, dbpath='/data/db', capture_output=False, **settings):
         import subprocess
         import time
