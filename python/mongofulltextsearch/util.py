@@ -187,6 +187,7 @@ class MongoDaemon(object):
     
     def __init__(self, dbpath='/data/db', capture_output=False, **settings):
         import subprocess
+        import time
         if dbpath is None:
             import tempfile
             dbpath = tempfile.mkdtemp()
@@ -216,6 +217,14 @@ class MongoDaemon(object):
           arg_list,
           **subproc_args
         )
+        if capture_output:
+            #AFAICT we only get to check for termination if we don't
+            #capture output. is it really that lame?
+            time.sleep(1)
+            daemon.poll()
+            if daemon.returncode:
+                #uh oh, server has died already
+                raise Exception("mongo server has died")
         self.daemon = daemon
         
     def destroy(self):
