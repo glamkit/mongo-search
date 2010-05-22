@@ -17,19 +17,29 @@ _connection = None
 _database = None
 _collection = None
 
-def setup_module():
+def setup_module_and_fixture():
     """
-    setup a test collection on a server
-    set up, then index, content.
+    Instantiate a new mongo daemon and corresponding connection and 
+    then insert the appropriate test fixture.
     """
     global _daemon
     global _connection
-    global _database
-    global _collection
     
     _daemon = util.MongoDaemon(**_settings)
     _connection = util.get_connection(**_settings)
-    _database = _connection['test']
+    setup_fixture(_connection)
+
+def setup_fixture(connection):
+    """
+    setup a test collection on a server
+    set up, then index, content.
+    
+    Call directly if you don't want to use the one-off test server
+    """
+    global _collection
+    global _database
+    
+    _database = connection['test']
     _database['system.js'].remove()    
     _collection = _database['items']
     _collection.remove()
@@ -59,6 +69,7 @@ def test_simple_search():
     stdout, stderr = mongo_search.map_reduce_index(collection)
     
     results = list(mongo_search.map_reduce_search(collection, u'fish').find())
+    print results
     # assert len(results) == 1
 
 # def test_stemming():
