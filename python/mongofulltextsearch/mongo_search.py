@@ -51,8 +51,9 @@ def map_reduce_search(collection, search_query_string):
     #   lazily assuming "$all" (i.e. AND search) 
     query_obj = {'value._extracted_terms': {'$all': search_query_terms}}
     db = collection.database
-    res = db[index_name(collection)].map_reduce(map_js, reduce_js, full_response=True, scope=scope, query=query_obj)
-    res_coll = collection.database[res['result']]
+    res = db[index_name(collection)].map_reduce(
+      map_js, reduce_js, full_response=True, scope=scope, query=query_obj)
+    res_coll = db[res['result']]
     res_coll.ensure_index([('value.score', pymongo.ASCENDING)]) # can't demand backgrounding in python seemingly?
     return res_coll
     
