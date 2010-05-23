@@ -320,8 +320,7 @@ var search = function (){
         
         var id_list ;
         if (query_obj) {
-            id_list = db[coll_name].find(query_obj, {_id: 1});
-            params.query = {_id: {$in: id_list}};
+            params.query = query_obj;
         }
         mft.debug_print(id_list, 'id_list');
 
