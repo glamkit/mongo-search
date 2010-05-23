@@ -37,10 +37,12 @@ def get_connection(**settings):
             return _connection
         else:
             settings = get_settings()
-    _connection = Connection(
-            settings['host'],
-            settings['port']
-        )
+    connection_settings = dict(
+      [(key, settings[key]) for key in [
+        'host', 'port', 'network_timeout'
+      ] if key in settings]
+    )
+    _connection = Connection(**connection_settings)
     return _connection
 
 def get_default_database(dbname='test'):
@@ -217,6 +219,8 @@ class MongoDaemon(object):
         if 'db' in settings:
             #only relevant for the client
             del(settings['db'])
+        if 'network_timeout' in settings:
+            del(settings['network_timeout'])
         settings['dbpath'] = dbpath
         self.settings = settings
         arg_list = ['mongod']

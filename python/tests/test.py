@@ -7,11 +7,13 @@ from nose import with_setup
 from nose.tools import assert_true, assert_equals, assert_raises
 from mongofulltextsearch import mongo_search, util
 
+
 _daemon = None
 _settings = {
     'dbpath': util.MongoDaemon.TEST_DIR, #i.e. a temporary folder, system-wide
     'port': 29017,
-    'host': 'localhost'
+    'host': 'localhost',
+    'network_timeout': 5
 }
 _connection = None
 _database = None
