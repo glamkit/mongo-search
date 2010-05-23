@@ -53,7 +53,7 @@ def get_js_root():
     if not _js_root:
         import path
         here = path.path(__file__).realpath()
-        _js_root = here.parent.parent.parent/'javascript'
+        _js_root = here.parent/'javascript'
     return _js_root
 
 def load_all_server_functions(database=None):
