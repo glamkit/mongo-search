@@ -438,11 +438,12 @@ var search = function (){
       var record_vec_sum_sq = 0;
       if (full_vector_norm) {
         for (term in rec_vec) {
-          record_vec_sum_sq += rec_vec[term];
+          record_vec_sum_sq += rec_vec[term] * rec_vec[term];
         }
       } else {
         record_vec_sum_sq = record_terms.length;
-      } 
+      }
+      mft.debug_print(rec_vec, "rec_vec");
       mft.debug_print(record_vec_sum_sq, "record_vec_sum_sq");
       mft.debug_print(dot_prod, "dot_prod");
       var query_vec_sum_sq = query_terms.length; // give each term a score of 1 in the query 1^2 = 1
