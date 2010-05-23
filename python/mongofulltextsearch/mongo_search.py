@@ -58,30 +58,30 @@ def map_reduce_search(collection, search_query_string):
 
 def map_reduce_nice_search_by_query(collection, search_query_string, query_obj=None):
     """
-    Yep, this also ahs to be a re-implementation of the javascript function.
-    """
+    Search, returning full result sets and limiting by the 
     
-    id_list = collection.find(query_obj, {_id: pymongo.ASCENDING}) if query_obj else None
-    return map_reduce_nice_search_by_ids(collection, search_query_string, id_list)
-
-
-def map_reduce_nice_search_by_ids(collection, search_query_string, id_list):
+    A re-implementation of the javascript function.
+    """
     raw_search_results = map_reduce_search(collection, search_query_string)
     search_coll_name = raw_search_results['result']
-    
     map_js = Code("function() { mft.get('search')._niceSearchMapExt(this) }")
     reduce_js = Code("function(k, v) { return mft.get('search')._niceSearchReduce(k, v) }")
     scope =  {'coll_name': collection.name}
     db = collection.database
-    query_obj = {'_id': {'$in': id_list}} if id_list is not None else {}
     sorting = {'value.score': pymongo.ASCENDING}
+    if query_obj is None: query_obj = {}
     res_coll = db[search_coll_name].map_reduce(map_js, reduce_js, 
         query=query_obj, scope=scope, sort=sorting)
-    res_coll.ensure_index([('value.score', pymongo.ASCENDING)])
+    #should we be ensuring an index here? or just leave it?
+    # res_coll.ensure_index([('value.score', pymongo.ASCENDING)])
     return res_coll.find().sort([('value.score', pymongo.DESCENDING)])
 
+def map_reduce_nice_search_by_ids(collection, search_query_string, id_list):
+    query_obj = {'_id': {'$in': id_list}} if id_list is not None else {}
+    return map_reduce_nice_search_by_query(collection, search_query_string, query_obj)
+
 def map_reduce_nice_search(collection, search_query_string):
-    return map_reduce_nice_search_by_ids(collection, search_query_string, None)
+    return map_reduce_nice_search_by_query(collection, search_query_string, None)
     
 def process_query_string(query_string):
     return sorted(stem_and_tokenize(query_string))
