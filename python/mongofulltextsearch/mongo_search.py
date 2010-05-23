@@ -51,111 +51,37 @@ def map_reduce_search(collection, search_query_string):
     #   lazily assuming "$all" (i.e. AND search) 
     query_obj = {'value._extracted_terms': {'$all': search_query_terms}}
     db = collection.database
-    res = db[index_name(collection)].map_reduce(map_js, reduce_js, full_response=True, scope=scope, query=query_obj)
-    res_coll = collection.database[res['result']]
-    res_coll.ensure_index([('value.score', pymongo.ASCENDING)]) # can't demand backgrounding in python seemingly?
-    return res_coll
-    
-    # search.mapReduceSearch = function(coll_name, search_query_string, keep_results) {
-    #       // searches a given coll's index
-    #       // return a coll name containing the sorted results - permanent
-    #       // nicely named if keep_results is true
-    #       //
-    #       var search = mft.get('search');
-    #       var search_query_terms = search.processQueryString(search_query_string);
-    #       mft.debug_print("searching using: ");
-    #       mft.debug_print(search_query_terms);
-    #       var index_coll_name = search.indexName(coll_name);
-    #       var params = { mapreduce : index_coll_name,
-    #           map : search._searchMap,
-    #           reduce : search._searchReduce,
-    #           // this is a filter to ignore objects without the right term in the index - generated in a moment...
-    #           query : {},
-    #           // if we wish to keep these results around we'll need to specify a coll name
-    #           // out : "searchfun",
-    #           scope : {search_terms: search_query_terms, coll_name: coll_name},
-    #           verbose : true
-    #       };
-    # 
-    #       // note that I've lazily assumed "$all" (i.e. AND search) here,
-    #       // rather than "$any" (OR). Since premature generalisation leads
-    #       // to herpes. 
-    #       params.query[("value."+search.EXTRACTED_TERMS_FIELD)] = { $all: search_query_terms };
-    # 
-    #       if (keep_results) {
-    #           params.out = search.resultName(coll_name, search_query_terms);
-    #       }
-    # 
-    #       var res = db.runCommand(params);
-    #       mft.debug_print(res);
-    # 
-    #       // this is  a disposable collection, which means reads:writes are
-    #       // in a 1:1 ratio, so indexing it may be pointless, performance-wise
-    #       // however it may only be sorted WITHOUT an index if it is less than
-    #       // 4 megabytes - see http://www.mongodb.org/display/DOCS/Indexes#Indexes-Using%7B%7Bsort%28%29%7D%7DwithoutanIndex
-    #       db[res.result].ensureIndex(
-    #           {"value.score": 1},
-    #           {background:true}
-    #       );
-    #       return res;
-    #   };
+    res = db[index_name(collection)].map_reduce(
+      map_js, reduce_js, full_response=True, scope=scope, query=query_obj)
+    db[res['result']].ensure_index([('value.score', pymongo.ASCENDING)]) # can't demand backgrounding in python seemingly?
+    return res
 
-def map_reduce_nice_search_by_query(collection, search_coll_name, query_obj=None):
+def map_reduce_nice_search_by_query(collection, search_query_string, query_obj=None):
     """
-    Yep, this also ahs to be a re-implementation of the javascript function.
+    Search, returning full result sets and limiting by the 
+    
+    A re-implementation of the javascript function.
     """
-    
-    id_list = collection.find(query_obj, {_id: pymongo.ASCENDING}) if query_obj else None
-    return map_reduce_nice_search_by_ids(collection, search_coll_name, id_list)
+    raw_search_results = map_reduce_search(collection, search_query_string)
+    search_coll_name = raw_search_results['result']
+    map_js = Code("function() { mft.get('search')._niceSearchMapExt(this) }")
+    reduce_js = Code("function(k, v) { return mft.get('search')._niceSearchReduce(k, v) }")
+    scope =  {'coll_name': collection.name}
+    db = collection.database
+    sorting = {'value.score': pymongo.ASCENDING}
+    if query_obj is None: query_obj = {}
+    res_coll = db[search_coll_name].map_reduce(map_js, reduce_js, 
+        query=query_obj, scope=scope, sort=sorting)
+    #should we be ensuring an index here? or just leave it?
+    # res_coll.ensure_index([('value.score', pymongo.ASCENDING)])
+    return res_coll.find().sort([('value.score', pymongo.DESCENDING)])
 
+def map_reduce_nice_search_by_ids(collection, search_query_string, id_list):
+    query_obj = {'_id': {'$in': id_list}} if id_list is not None else {}
+    return map_reduce_nice_search_by_query(collection, search_query_string, query_obj)
 
-def map_reduce_nice_search_by_ids(collection, search_coll_name, id_list):
-    pass
-    # search.mapReduceNiceSearch = function(coll_name, search_coll_name, query_obj) {
-    #     // takes a search collection and a query dict and returns a temporary
-    #     // coll worth of results including whole records.
-    #     // different from the mapReduceSearch in that it 
-    #     // 1) returns whole records, not just ranks
-    #     // 2) can limit results by other criteria than fulltext search
-    #     //
-    #     var search = mft.get('search');
-    #     mft.debug_print(coll_name, 'coll_name');
-    #     mft.debug_print(search_coll_name, 'search_coll_name');
-    #     mft.debug_print(query_obj, 'query_obj');
-    #     
-    #     var params = { mapreduce : search_coll_name,
-    #         map : search._niceSearchMap,
-    #         reduce : search._niceSearchReduce,
-    #         sort : {"value.score": 1},
-    #         scope : {coll_name: coll_name},
-    #         verbose : true
-    #     };
-    #     
-    #     var id_list ;
-    #     if (query_obj) {
-    #         id_list = db[coll_name].find(query_obj, {_id: 1});
-    #         params.query = {_id: {$in: id_list}};
-    #     }
-    #     mft.debug_print(id_list, 'id_list');
-    # 
-    #     var res = db.runCommand(params);
-    #     mft.debug_print(res);
-    # 
-    #     // this is  a disposable collection, which means reads:writes are
-    #     // in a 1:1 ratio, so indexing it may be pointless, performance-wise
-    #     // however it may only be sorted WITHOUT an index if it is less than
-    #     // 4 megabytes - see http://www.mongodb.org/display/DOCS/Indexes#Indexes-Using%7B%7Bsort%28%29%7D%7DwithoutanIndex
-    #     // but DOES it need to be sorted is the question?
-    #     //
-    #     db[res.result].ensureIndex(
-    #         {"value.score": 1},
-    #         {background:true}
-    #     );
-    #     return db[res.result].find().sort({"value.score": -1});
-    # };
-    
-def map_reduce_nice_search(collection, search_coll_name):
-    return map_reduce_nice_search_by_ids(collection, search_coll_name, None)
+def map_reduce_nice_search(collection, search_query_string):
+    return map_reduce_nice_search_by_query(collection, search_query_string, None)
     
 def process_query_string(query_string):
     return sorted(stem_and_tokenize(query_string))

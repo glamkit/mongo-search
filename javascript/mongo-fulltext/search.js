@@ -9,20 +9,14 @@ var search = function (){
       // they should probably be stored in a safely serialisable config object
       // that is stashed in the system.js collection (for server use) and
       // global scope locally (for client/testing use)
-      //
-      STEMMING: 'porter', // doesn't do anything yet
-      TOKENIZING: 'basic',// doesn't do anything yet
-
+      //  
+      // (why not in the DB?)
+      STEMMING: 'porter', // only option right now
+      TOKENIZING: 'basic',// only option right now
       INDEX_NAMESPACE: 'search_.indexes',
       RESULT_NAMESPACE: 'search_.results',
-
       TERM_SCORE_NAMESPACE: 'search_.termscores',
-      SEARCH_ALL_PSEUDO_FIELD: '$search', // magic "field name" that specifies we want a fulltext search 
-                // (abusing the '$' notation somewhat, which is often for search operators)
-      SEARCH_ANY_PSEUDO_FIELD: '$searchany', // magic "field name" that specifies we want a fulltext search matching any, not all
-      
       MIN_TERM_SCORE: 0.0, // threshold below which we don't add the score on - set to 0 to include all terms
-      
       // WORKHORSE VARS:
       _STEM_FUNCTION: null,
       _TOKENIZE_FUNCTION: null
@@ -167,15 +161,23 @@ var search = function (){
         search.mapReduceIndex(coll_name);
         search.mapReduceTermScore(coll_name);
     }
-        
-    search._searchMap = function() {
-      mft.get('search')._searchMapExt(this);
-    }
+    
     
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //
+    search._searchMap = function() {
+      mft.get('search')._searchMapExt(this);
+    }
+
+    // when calling the map function from wrappers (eg python)
+    // it seems that `this` is only bound to the record being mapped one function-call in
+    // (ie doesn't work in nested function calls).
+    // for that reason, we need to have a one-arg function which takes the 
+    // record as an arg (presumably there was some reason for mongo *not* doing it that way 
+    // in the first place, but it seems to work well enough). We can then call it with
+    // a wrapper function similar to the _searchMap function above
     search._searchMapExt = function(rec) {
         mft.debug_print("in searchMap with doc: ");
         mft.debug_print(rec);
@@ -183,6 +185,8 @@ var search = function (){
         mft.debug_print(search_terms);
         var search = mft.get('search');
         var score = search.scoreRecordAgainstQuery(rec, search_terms);
+        mft.debug_print("doc score is: ");
+        mft.debug_print(score)
         // potential optimisation: don't return very low scores
         // to do this optimisation, we'd probably need to adjust the scoring algorithm
         // to make scores that are absolutely comparable - so normalise against the query vector as well
@@ -254,16 +258,21 @@ var search = function (){
         return res;
     };
 
+
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //
     search._niceSearchMap = function() {
-        mft.debug_print(this, "in _niceSearchMap with doc: ");
+      mft.get('search')._niceSearchMapExt(this);
+    }
+    
+    search._niceSearchMapExt = function(rec) {
+        mft.debug_print(rec, "in _niceSearchMap with doc: ");
         mft.debug_print(coll_name, "and coll_name");
-        var doc = db[coll_name].findOne({_id: this._id});
-        doc.score = this.value;
-        emit(this._id, doc);
+        var doc = db[coll_name].findOne({_id: rec._id});
+        doc.score = rec.value;
+        emit(rec._id, doc);
     };
 
     //
@@ -280,17 +289,24 @@ var search = function (){
     // This JS function should never be called, except from javascript
     // clients. See note at search.mapReduceSearch
     // 
-    search.mapReduceNiceSearch = function(coll_name, search_coll_name, query_obj) {
+    search.mapReduceNiceSearch = function(coll_name, search_query_string, query_obj) {
         // takes a search collection and a query dict and returns a temporary
         // coll worth of results including whole records.
         // different from the mapReduceSearch in that it 
         // 1) returns whole records, not just ranks
         // 2) can limit results by other criteria than fulltext search
         //
+        if (typeof query_obj === 'undefined') {
+          query_obj = {};
+        }
         var search = mft.get('search');
         mft.debug_print(coll_name, 'coll_name');
-        mft.debug_print(search_coll_name, 'search_coll_name');
+        mft.debug_print(search_query_string, 'search_query_string');
         mft.debug_print(query_obj, 'query_obj');
+        
+        raw_search_results = search.mapReduceSearch(coll_name, search_query_string);
+        mft.debug_print(raw_search_results, 'raw_search_results');
+        search_coll_name = raw_search_results.result;
         
         var params = { mapreduce : search_coll_name,
             map : search._niceSearchMap,
@@ -300,15 +316,13 @@ var search = function (){
             verbose : true
         };
         
-        var id_list ;
         if (query_obj) {
-            id_list = db[coll_name].find(query_obj, {_id: 1});
-            params.query = {_id: {$in: id_list}};
+            params.query = query_obj;
         }
-        mft.debug_print(id_list, 'id_list');
+        mft.debug_print(params, 'params');
 
         var res = db.runCommand(params);
-        mft.debug_print(res);
+        mft.debug_print(res, 'res');
 
         // this is  a disposable collection, which means reads:writes are
         // in a 1:1 ratio, so indexing it may be pointless, performance-wise
@@ -380,7 +394,6 @@ var search = function (){
       var search = mft.get("search");
       var record_terms = record.value._extracted_terms;
       var query_terms_set = {};
-      var score = 0.0;
       for (var i = 0; i < query_terms.length; i++) {
         query_terms_set[query_terms[i]] = true; // to avoid needing to iterate
       }
@@ -401,24 +414,41 @@ var search = function (){
         }
         return term_idf;
       };
+      var rec_vec = {}
+      var dot_prod = 0;
       for (var j = 0; j < record_terms.length; j++) {
         var term = record_terms[j];
         // mft.debug_print(term, "scoring term");
         var term_in_query = (term in query_terms_set);
         var term_idf = 0;
         if (term_in_query || full_vector_norm) {
-
           term_idf = getCachedTermIdf(term);
-          // mft.debug_print(term_idf, "term_idf");
+          mft.debug_print(term, "term");
+          mft.debug_print(term_idf, "term_idf");
+          if (!(term in rec_vec)) {
+            rec_vec[term] = term_idf;
+          } else {
+            rec_vec[term] += term_idf;
+          }
         }
         if (term_in_query) {
-            score += term_idf;
+          dot_prod += term_idf;
         }
-        record_vec_sum_sq += full_vector_norm ? term_idf * term_idf : 1.0;
       }
-      return score/Math.sqrt(record_vec_sum_sq);
+      var record_vec_sum_sq = 0;
+      if (full_vector_norm) {
+        for (term in rec_vec) {
+          record_vec_sum_sq += rec_vec[term] * rec_vec[term];
+        }
+      } else {
+        record_vec_sum_sq = record_terms.length;
+      }
+      mft.debug_print(rec_vec, "rec_vec");
+      mft.debug_print(record_vec_sum_sq, "record_vec_sum_sq");
+      mft.debug_print(dot_prod, "dot_prod");
+      var query_vec_sum_sq = query_terms.length; // give each term a score of 1 in the query 1^2 = 1
+      return dot_prod/(Math.sqrt(record_vec_sum_sq) * Math.sqrt(query_vec_sum_sq));
       // for cosine similarity, we normalize the document vector against the sqrt of the sums of the sqares of all term
-      // we also haven't divided by the magnitude of the query vector, but that is constant across docs
       // could probably take some shortcuts here w/o too much loss of accuracy
     };
 
