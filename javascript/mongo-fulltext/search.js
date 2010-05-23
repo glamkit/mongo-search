@@ -1,5 +1,5 @@
 "use strict";
-// mft.DEBUG = true;
+mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -167,15 +167,23 @@ var search = function (){
         search.mapReduceIndex(coll_name);
         search.mapReduceTermScore(coll_name);
     }
-        
-    search._searchMap = function() {
-      mft.get('search')._searchMapExt(this);
-    }
+    
     
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //
+    search._searchMap = function() {
+      mft.get('search')._searchMapExt(this);
+    }
+
+    // when calling the map function from wrappers (eg python)
+    // it seems that `this` is only bound to the record being mapped one function-call in
+    // (ie doesn't work in nested function calls).
+    // for that reason, we need to have a one-arg function which takes the 
+    // record as an arg (presumably there was some reason for mongo *not* doing it that way 
+    // in the first place, but it seems to work well enough). We can then call it with
+    // a wrapper function similar to the _searchMap function above
     search._searchMapExt = function(rec) {
         mft.debug_print("in searchMap with doc: ");
         mft.debug_print(rec);
@@ -183,6 +191,8 @@ var search = function (){
         mft.debug_print(search_terms);
         var search = mft.get('search');
         var score = search.scoreRecordAgainstQuery(rec, search_terms);
+        mft.debug_print("doc score is: ");
+        mft.debug_print(score)
         // potential optimisation: don't return very low scores
         // to do this optimisation, we'd probably need to adjust the scoring algorithm
         // to make scores that are absolutely comparable - so normalise against the query vector as well
@@ -254,16 +264,21 @@ var search = function (){
         return res;
     };
 
+
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //
     search._niceSearchMap = function() {
-        mft.debug_print(this, "in _niceSearchMap with doc: ");
+      mft.get('search')._niceSearchMapExt(this);
+    }
+    
+    search._niceSearchMapExt = function(rec) {
+        mft.debug_print(rec, "in _niceSearchMap with doc: ");
         mft.debug_print(coll_name, "and coll_name");
-        var doc = db[coll_name].findOne({_id: this._id});
-        doc.score = this.value;
-        emit(this._id, doc);
+        var doc = db[coll_name].findOne({_id: rec._id});
+        doc.score = rec.value;
+        emit(rec._id, doc);
     };
 
     //
@@ -280,7 +295,7 @@ var search = function (){
     // This JS function should never be called, except from javascript
     // clients. See note at search.mapReduceSearch
     // 
-    search.mapReduceNiceSearch = function(coll_name, search_coll_name, query_obj) {
+    search.mapReduceNiceSearch = function(coll_name, search_query_string, query_obj) {
         // takes a search collection and a query dict and returns a temporary
         // coll worth of results including whole records.
         // different from the mapReduceSearch in that it 
@@ -291,6 +306,9 @@ var search = function (){
         mft.debug_print(coll_name, 'coll_name');
         mft.debug_print(search_coll_name, 'search_coll_name');
         mft.debug_print(query_obj, 'query_obj');
+        
+        raw_search_results = search.mapReduceSearch(coll_name, search_query_string);
+        search_coll_name = raw_search_results[result];
         
         var params = { mapreduce : search_coll_name,
             map : search._niceSearchMap,
