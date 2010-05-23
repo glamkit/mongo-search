@@ -1,5 +1,5 @@
 "use strict";
-// mft.DEBUG = true;
+mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -302,13 +302,17 @@ var search = function (){
         // 1) returns whole records, not just ranks
         // 2) can limit results by other criteria than fulltext search
         //
+        if (typeof query_obj === 'undefined') {
+          query_obj = {};
+        }
         var search = mft.get('search');
         mft.debug_print(coll_name, 'coll_name');
-        mft.debug_print(search_coll_name, 'search_coll_name');
+        mft.debug_print(search_query_string, 'search_query_string');
         mft.debug_print(query_obj, 'query_obj');
         
         raw_search_results = search.mapReduceSearch(coll_name, search_query_string);
-        search_coll_name = raw_search_results[result];
+        mft.debug_print(raw_search_results, 'raw_search_results');
+        search_coll_name = raw_search_results.result;
         
         var params = { mapreduce : search_coll_name,
             map : search._niceSearchMap,
@@ -318,14 +322,13 @@ var search = function (){
             verbose : true
         };
         
-        var id_list ;
         if (query_obj) {
             params.query = query_obj;
         }
-        mft.debug_print(id_list, 'id_list');
+        mft.debug_print(params, 'params');
 
         var res = db.runCommand(params);
-        mft.debug_print(res);
+        mft.debug_print(res, 'res');
 
         // this is  a disposable collection, which means reads:writes are
         // in a 1:1 ratio, so indexing it may be pointless, performance-wise
