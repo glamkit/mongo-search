@@ -1,8 +1,9 @@
 # -*- Import: -*-
 from paver.easy import *
 from paver import setuputils
-from paver.setuputils import setup
+#from distutils.core import setup
 from setuptools import find_packages
+from paver.setuputils import setup
 
 PROJECT = 'mongofulltextsearch'
 
@@ -22,15 +23,12 @@ except ImportError, e:
 setuputils.standard_exclude+=('.gitignore',)
 setuputils.standard_exclude_directories+=('.git',)
 
-JS_INCLUDE = setuputils.find_package_data('../',
-   exclude_directories=setuputils.standard_exclude_directories+('python',),
-   package=PROJECT, only_in_packages=False)
+
 PACKAGE_DATA = setuputils.find_package_data(PROJECT, 
                                             package=PROJECT,
                                             only_in_packages=False,)
-PACKAGE_DATA[PROJECT]=PACKAGE_DATA.get(PROJECT, []) + JS_INCLUDE[PROJECT]
 
-version = '0.1'
+version = '0.1-alpha'
 
 classifiers = [
     # Get more strings from http://www.python.org/pypi?%3Aaction=list_classifiers
@@ -69,12 +67,13 @@ setup(
     url='http://github.com/howthebodyworks/mongo-full-text-search/',
     license='BSD',
     packages = find_packages(exclude=['bootstrap', 'pavement',]),
+    package_dir = {'mongofulltextsearch': 'mongofulltextsearch'},
     include_package_data=True,
+    package_data=PACKAGE_DATA,
     test_suite='nose.collector',
     zip_safe=False,
     install_requires=install_requires,
     entry_points=entry_points,
-    package_data=PACKAGE_DATA
 )
 
 options(

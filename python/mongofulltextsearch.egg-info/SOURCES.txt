@@ -21,6 +21,6 @@ mongofulltextsearch.egg-info/entry_points.txt
 mongofulltextsearch.egg-info/not-zip-safe
 mongofulltextsearch.egg-info/requires.txt
 mongofulltextsearch.egg-info/top_level.txt
-tests/__init__.py
-tests/_util.py
-tests/test.py
+mongofulltextsearch/tests/__init__.py
+mongofulltextsearch/tests/_util.py
+mongofulltextsearch/tests/test.py
