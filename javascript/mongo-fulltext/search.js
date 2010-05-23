@@ -9,18 +9,13 @@ var search = function (){
       // they should probably be stored in a safely serialisable config object
       // that is stashed in the system.js collection (for server use) and
       // global scope locally (for client/testing use)
-      //
-      STEMMING: 'porter', // doesn't do anything yet
-      TOKENIZING: 'basic',// doesn't do anything yet
-
+      //  
+      // (why not in the DB?)
+      STEMMING: 'porter', // only option right now
+      TOKENIZING: 'basic',// only option right now
       INDEX_NAMESPACE: 'search_.indexes',
       RESULT_NAMESPACE: 'search_.results',
-
       TERM_SCORE_NAMESPACE: 'search_.termscores',
-      SEARCH_ALL_PSEUDO_FIELD: '$search', // magic "field name" that specifies we want a fulltext search 
-                // (abusing the '$' notation somewhat, which is often for search operators)
-      SEARCH_ANY_PSEUDO_FIELD: '$searchany', // magic "field name" that specifies we want a fulltext search matching any, not all
-      
       MIN_TERM_SCORE: 0.0, // threshold below which we don't add the score on - set to 0 to include all terms
       
       // WORKHORSE VARS:
