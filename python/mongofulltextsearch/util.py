@@ -212,6 +212,7 @@ class MongoDaemon(object):
             except OSError:
                 #this is so stupid - what if we don't have write perms, eh?
                 pass
+        settings['dbpath'] = dbpath
         if 'host' in settings:
             #specified w/ different spelling on client and server
             settings['bind_ip'] = settings['host']
@@ -221,7 +222,6 @@ class MongoDaemon(object):
             del(settings['db'])
         if 'network_timeout' in settings:
             del(settings['network_timeout'])
-        settings['dbpath'] = dbpath
         self.settings = settings
         arg_list = ['mongod']
         for key, val in settings.iteritems():
