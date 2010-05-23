@@ -249,6 +249,7 @@ class MongoDaemon(object):
                 #uh oh, server has died already
                 raise Exception("mongo server has died")
         self.daemon = daemon
+        self.dbpath = dbpath
         
     def destroy(self):
         if self.daemon:

@@ -6,13 +6,13 @@ actual tests for the mongo-full-text-search
 from nose import with_setup
 from nose.tools import assert_true, assert_equals, assert_raises
 from mongofulltextsearch import mongo_search, util
-
+import time
 
 _daemon = None
 _settings = {
     'dbpath': util.MongoDaemon.TEST_DIR, #i.e. a temporary folder, system-wide
     'port': 29017,
-    'host': 'localhost',
+    'host': '127.0.0.1',
     'network_timeout': 5
 }
 _connection = None
@@ -24,7 +24,9 @@ def setup_module():
     Instantiate a new mongo daemon and corresponding connection and 
     then insert the appropriate test fixture.
     """
+    global _connection
     daemon = _setup_daemon()
+    time.sleep(1)
     _connection = util.get_connection(**_settings)
     _setup_fixture(_connection)
     
