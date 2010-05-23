@@ -28,11 +28,11 @@ assert.eq(result, [
         {
                 "_id" : 1,
 
-                "value" : 0.9445005099847485
+                "value" : 0.8470288435072321
         },
         {
                 "_id" : 3,
-                "value" : 1.3867504905630728
+                "value" : 0.8830292138517847
         }
 ]);
 
@@ -42,4 +42,4 @@ result = db[result.result].find().sort({"value.score": 1}).toArray();
 
 // print(result, "Search result for 'Dory'");
 
-assert.eq(result, [ { "_id" : 1, "value" : 0.5118269592981766 } ]);
+assert.eq(result, [ { "_id" : 1, "value" : 0.4590068431166418 } ]);

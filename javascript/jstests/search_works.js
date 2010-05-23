@@ -31,7 +31,7 @@ assert.eq(search_result.toArray(), [
                         "_id" : 3,
                         "title" : "dogs & fish",
                         "content" : "whippets kick groupers",
-                        "score" : 1.3867504905630728
+                        "score" : 0.8830292138517847
                 }
         },
         {
@@ -40,7 +40,7 @@ assert.eq(search_result.toArray(), [
                         "_id" : 1,
                         "title" : "fish",
                         "content" : "groupers like John Dory",
-                        "score" : 0.9445005099847488
+                        "score" : 0.8470288435072321
                 }
         }
   ], "search_works_1"

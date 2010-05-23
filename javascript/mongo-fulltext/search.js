@@ -1,5 +1,5 @@
 "use strict";
-mft.DEBUG = true;
+// mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -17,7 +17,6 @@ var search = function (){
       RESULT_NAMESPACE: 'search_.results',
       TERM_SCORE_NAMESPACE: 'search_.termscores',
       MIN_TERM_SCORE: 0.0, // threshold below which we don't add the score on - set to 0 to include all terms
-      
       // WORKHORSE VARS:
       _STEM_FUNCTION: null,
       _TOKENIZE_FUNCTION: null
@@ -395,7 +394,6 @@ var search = function (){
       var search = mft.get("search");
       var record_terms = record.value._extracted_terms;
       var query_terms_set = {};
-      var score = 0.0;
       for (var i = 0; i < query_terms.length; i++) {
         query_terms_set[query_terms[i]] = true; // to avoid needing to iterate
       }
@@ -416,24 +414,40 @@ var search = function (){
         }
         return term_idf;
       };
+      var rec_vec = {}
+      var dot_prod = 0;
       for (var j = 0; j < record_terms.length; j++) {
         var term = record_terms[j];
         // mft.debug_print(term, "scoring term");
         var term_in_query = (term in query_terms_set);
         var term_idf = 0;
         if (term_in_query || full_vector_norm) {
-
           term_idf = getCachedTermIdf(term);
-          // mft.debug_print(term_idf, "term_idf");
+          mft.debug_print(term, "term");
+          mft.debug_print(term_idf, "term_idf");
+          if (!(term in rec_vec)) {
+            rec_vec[term] = term_idf;
+          } else {
+            rec_vec[term] += term_idf;
+          }
         }
         if (term_in_query) {
-            score += term_idf;
+          dot_prod += term_idf;
         }
-        record_vec_sum_sq += full_vector_norm ? term_idf * term_idf : 1.0;
       }
-      return score/Math.sqrt(record_vec_sum_sq);
+      var record_vec_sum_sq = 0;
+      if (full_vector_norm) {
+        for (term in rec_vec) {
+          record_vec_sum_sq += rec_vec[term];
+        }
+      } else {
+        record_vec_sum_sq = record_terms.length;
+      } 
+      mft.debug_print(record_vec_sum_sq, "record_vec_sum_sq");
+      mft.debug_print(dot_prod, "dot_prod");
+      var query_vec_sum_sq = query_terms.length; // give each term a score of 1 in the query 1^2 = 1
+      return dot_prod/(Math.sqrt(record_vec_sum_sq) * Math.sqrt(query_vec_sum_sq));
       // for cosine similarity, we normalize the document vector against the sqrt of the sums of the sqares of all term
-      // we also haven't divided by the magnitude of the query vector, but that is constant across docs
       // could probably take some shortcuts here w/o too much loss of accuracy
     };
 
