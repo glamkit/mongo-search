@@ -37,10 +37,12 @@ def get_connection(**settings):
             return _connection
         else:
             settings = get_settings()
-    _connection = Connection(
-            settings['host'],
-            settings['port']
-        )
+    connection_settings = dict(
+      [(key, settings[key]) for key in [
+        'host', 'port', 'network_timeout'
+      ] if key in settings]
+    )
+    _connection = Connection(**connection_settings)
     return _connection
 
 def get_default_database(dbname='test'):
@@ -184,12 +186,33 @@ class MongoDaemon(object):
     
     TODO: support with_statement Context stuff.
     """
+    class TEST_DIR:pass
+    class PRIVATE_TMP_DIR:pass
     
-    def __init__(self, dbpath='/data/db', **settings):
+    def __getattr__(self, attribute):
+        """
+        instead of outright subclassing subprocess.POpen we provide convenince
+        accessors on this wrapper.
+        """
+        return getattr(self.daemon, attribute)
+        
+    def __init__(self, dbpath='/data/db', capture_output=False, **settings):
         import subprocess
-        if dbpath is None:
-            import tempfile
+        import time
+        import tempfile
+        
+        if dbpath is self.PRIVATE_TMP_DIR:
             dbpath = tempfile.mkdtemp()
+        elif dbpath is self.TEST_DIR:
+            #TODO: find the path prefic in an OS-sensitive version
+            dbpath = '/tmp/mongodbtest'
+            import os
+            try:
+                os.makedirs(dbpath)
+            except OSError:
+                #this is so stupid - what if we don't have write perms, eh?
+                pass
+        settings['dbpath'] = dbpath
         if 'host' in settings:
             #specified w/ different spelling on client and server
             settings['bind_ip'] = settings['host']
@@ -197,19 +220,34 @@ class MongoDaemon(object):
         if 'db' in settings:
             #only relevant for the client
             del(settings['db'])
-        settings['dbpath'] = dbpath
+        if 'network_timeout' in settings:
+            del(settings['network_timeout'])
         self.settings = settings
         arg_list = ['mongod']
         for key, val in settings.iteritems():
             arg_list.append('--' + key)
             if val is not None: arg_list.append(str(val))
         # don't share stdout - see http://stackoverflow.com/questions/89228/how-to-call-external-command-in-python/2251026#2251026
+        if capture_output:
+            subproc_args = {
+              'stdout': subprocess.PIPE,
+              'stderr': subprocess.PIPE,
+              'stdin': subprocess.PIPE
+            }
+        else:
+            subproc_args = {}
         daemon = subprocess.Popen(
           arg_list,
-          stdout = subprocess.PIPE,
-          stderr = subprocess.PIPE,
-          stdin = subprocess.PIPE
+          **subproc_args
         )
+        if capture_output:
+            #AFAICT we only get to check for termination if we don't
+            #capture output. is it really that lame?
+            time.sleep(1)
+            daemon.poll()
+            if daemon.returncode:
+                #uh oh, server has died already
+                raise Exception("mongo server has died")
         self.daemon = daemon
         
     def destroy(self):
