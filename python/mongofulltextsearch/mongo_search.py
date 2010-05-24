@@ -41,8 +41,7 @@ def index_collection(collection):
 
 def search(collection, search_query_string):
     """
-    we can cheat with the indexing, but this has to be a full re-implementation
-    of mapreduce functions on the javascript side. Woo.
+    Re-implmentation of JS function search.mapReduceSearch
     """
     search_query_terms = process_query_string(search_query_string)
     map_js = Code("function() { mft.get('search')._searchMap.call(this) }")
@@ -57,11 +56,19 @@ def search(collection, search_query_string):
     # should we be returning a verbose result, or just the collection here?
     return res
 
-def nice_search_by_query(collection, search_query_string, query_obj=None):
+def nice_search_by_query(collection, search_query_string, query_obj):
     """
-    Search, returning full result sets and limiting by the supplied query_obj
-    
-    A re-implementation of the javascript function.
+    Search, returning full result sets and limiting by the supplied id_list
+    A re-implementation of the javascript function search.mapReduceNiceSearch.
+    """
+    # because we only have access to the index collection later, we have to convert 
+    # the query_obj to an id list
+    id_list = [rec['_id'] for rec in collection.find(query_obj, ['_id'])]
+    return nice_search_by_ids(collection, search_query_string, id_list)
+
+def nice_search_by_ids(collection, search_query_string, id_list=None):
+    """
+    Search, returning full result sets and limiting by the supplied id_list
     """
     raw_search_results = search(collection, search_query_string)
     search_coll_name = raw_search_results.name
@@ -70,19 +77,18 @@ def nice_search_by_query(collection, search_query_string, query_obj=None):
     scope =  {'coll_name': collection.name}
     db = collection.database
     sorting = {'value.score': pymongo.DESCENDING}
-    if query_obj is None: query_obj = {}
+    if id_list is None:
+        id_query_obj = {}
+    else:
+        id_query_obj = {'_id': {'$in': id_list}}
     res_coll = db[search_coll_name].map_reduce(map_js, reduce_js, 
-        query=query_obj, scope=scope, sort=sorting)
+        query=id_query_obj, scope=scope, sort=sorting)
     #should we be ensuring an index here? or just leave it?
     # res_coll.ensure_index([('value.score', pymongo.ASCENDING)])
-    return res_coll.find().sort([('value.score', pymongo.DESCENDING)])
-
-def nice_search_by_ids(collection, search_query_string, id_list):
-    query_obj = {'_id': {'$in': id_list}} if id_list is not None else {}
-    return nice_search_by_query(collection, search_query_string, query_obj)
+    return res_coll.find()
 
 def nice_search(collection, search_query_string):
-    return nice_search_by_query(collection, search_query_string, None)
+    return nice_search_by_ids(collection, search_query_string, None)
     
 def process_query_string(query_string):
     return sorted(stem_and_tokenize(query_string))
