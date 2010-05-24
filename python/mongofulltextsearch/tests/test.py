@@ -91,13 +91,13 @@ def test_simple_search():
         'full_vector_norm': True}
     })
     
-    stdout, stderr = mongo_search.map_reduce_index(collection)
+    stdout, stderr = mongo_search.index_collection(collection)
     
-    results = mongo_search.map_reduce_search(collection, u'fish')
+    results = mongo_search.search(collection, u'fish')
     print results
-    print list(_database[results['result']].find())
+    print list(results.find())
     
-    nice_results = mongo_search.map_reduce_nice_search(collection, u'fish')
+    nice_results = mongo_search.nice_search(collection, u'fish')
     print list(nice_results)
     # assert len(results) == 1
 

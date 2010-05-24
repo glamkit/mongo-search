@@ -28,7 +28,7 @@ INDEX_NAMESPACE = 'search_.indexes'
 
 
 
-def map_reduce_index(collection):
+def index_collection(collection):
     """Execute all relevant bulk indexing functions
     ie:
         mapReduceIndex , which extracts indexed terms and puts them in a new collection
@@ -39,7 +39,7 @@ def map_reduce_index(collection):
       "mft.get('search').mapReduceIndexTheLot('%s');" % collection.name,
       collection.database)
 
-def map_reduce_search(collection, search_query_string):
+def search(collection, search_query_string):
     """
     we can cheat with the indexing, but this has to be a full re-implementation
     of mapreduce functions on the javascript side. Woo.
@@ -52,23 +52,24 @@ def map_reduce_search(collection, search_query_string):
     query_obj = {'value._extracted_terms': {'$all': search_query_terms}}
     db = collection.database
     res = db[index_name(collection)].map_reduce(
-      map_js, reduce_js, full_response=True, scope=scope, query=query_obj)
-    db[res['result']].ensure_index([('value.score', pymongo.ASCENDING)]) # can't demand backgrounding in python seemingly?
+      map_js, reduce_js, scope=scope, query=query_obj)
+    res.ensure_index([('value.score', pymongo.ASCENDING)]) # can't demand backgrounding in python seemingly?
+    # should we be returning a verbose result, or just the collection here?
     return res
 
-def map_reduce_nice_search_by_query(collection, search_query_string, query_obj=None):
+def nice_search_by_query(collection, search_query_string, query_obj=None):
     """
-    Search, returning full result sets and limiting by the 
+    Search, returning full result sets and limiting by the supplied query_obj
     
     A re-implementation of the javascript function.
     """
-    raw_search_results = map_reduce_search(collection, search_query_string)
-    search_coll_name = raw_search_results['result']
+    raw_search_results = search(collection, search_query_string)
+    search_coll_name = raw_search_results.name
     map_js = Code("function() { mft.get('search')._niceSearchMap.call(this) }")
     reduce_js = Code("function(k, v) { return mft.get('search')._niceSearchReduce(k, v) }")
     scope =  {'coll_name': collection.name}
     db = collection.database
-    sorting = {'value.score': pymongo.ASCENDING}
+    sorting = {'value.score': pymongo.DESCENDING}
     if query_obj is None: query_obj = {}
     res_coll = db[search_coll_name].map_reduce(map_js, reduce_js, 
         query=query_obj, scope=scope, sort=sorting)
@@ -76,12 +77,12 @@ def map_reduce_nice_search_by_query(collection, search_query_string, query_obj=N
     # res_coll.ensure_index([('value.score', pymongo.ASCENDING)])
     return res_coll.find().sort([('value.score', pymongo.DESCENDING)])
 
-def map_reduce_nice_search_by_ids(collection, search_query_string, id_list):
+def nice_search_by_ids(collection, search_query_string, id_list):
     query_obj = {'_id': {'$in': id_list}} if id_list is not None else {}
-    return map_reduce_nice_search_by_query(collection, search_query_string, query_obj)
+    return nice_search_by_query(collection, search_query_string, query_obj)
 
-def map_reduce_nice_search(collection, search_query_string):
-    return map_reduce_nice_search_by_query(collection, search_query_string, None)
+def nice_search(collection, search_query_string):
+    return nice_search_by_query(collection, search_query_string, None)
     
 def process_query_string(query_string):
     return sorted(stem_and_tokenize(query_string))
