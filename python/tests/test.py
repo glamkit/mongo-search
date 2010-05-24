@@ -85,6 +85,9 @@ def test_simple_search():
     results = mongo_search.map_reduce_search(collection, u'fish')
     print results
     print list(_database[results['result']].find())
+    
+    nice_results = mongo_search.map_reduce_nice_search(collection, u'fish')
+    print list(nice_results)
     # assert len(results) == 1
 
 # def test_stemming():
