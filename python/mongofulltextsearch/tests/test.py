@@ -6,13 +6,13 @@ actual tests for the mongo-full-text-search
 from nose import with_setup
 from nose.tools import assert_true, assert_equals, assert_raises
 from mongofulltextsearch import mongo_search, util
-
+import time
 
 _daemon = None
 _settings = {
     'dbpath': util.MongoDaemon.TEST_DIR, #i.e. a temporary folder, system-wide
     'port': 29017,
-    'host': 'localhost',
+    'host': '127.0.0.1',
     'network_timeout': 5
 }
 _connection = None

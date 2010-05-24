@@ -1,0 +1,2 @@
+setuptools
+pymongo >= 1.6
