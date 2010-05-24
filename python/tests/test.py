@@ -24,8 +24,19 @@ def setup_module():
     Instantiate a new mongo daemon and corresponding connection and 
     then insert the appropriate test fixture.
     """
+    from pymongo.connection import AutoReconnect
+    import time
     daemon = _setup_daemon()
-    _connection = util.get_connection(**_settings)
+    conn_tries = 0
+    while True:
+        try:
+            _connection = util.get_connection(**_settings)
+            break
+        except AutoReconnect:
+            conn_tries += 1 # sometimes the daemon doesn't set up straight away
+            if conn_tries > 5: 
+                raise #but if we've waited 5 secs, let's give up
+            time.sleep(1)
     _setup_fixture(_connection)
     
 def _setup_daemon():
