@@ -1,5 +1,5 @@
 "use strict";
-// mft.DEBUG = true;
+mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -285,7 +285,7 @@ var search = function (){
         // 2) can limit results by other criteria than fulltext search
         //
         if (typeof query_obj === 'undefined') {
-          query_obj = {};
+          query_obj = null;
         }
         var search = mft.get('search');
         mft.debug_print(coll_name, 'coll_name');
@@ -305,7 +305,12 @@ var search = function (){
         };
         
         if (query_obj) {
-            params.query = query_obj;
+            id_list = [];
+            db[coll_name].find(query_obj, {_id: 1}).forEach(function(rec) {
+              id_list.push(rec._id);
+            });
+            mft.debug_print("got " + id_list.length + " IDs for query obj " + tojson(query_obj));
+            params.query = {_id: {$in: id_list}}; 
         }
         mft.debug_print(params, 'params');
 
