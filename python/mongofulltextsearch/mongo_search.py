@@ -45,7 +45,7 @@ def map_reduce_search(collection, search_query_string):
     of mapreduce functions on the javascript side. Woo.
     """
     search_query_terms = process_query_string(search_query_string)
-    map_js = Code("function() { mft.get('search')._searchMapExt(this) }")
+    map_js = Code("function() { mft.get('search')._searchMap.call(this) }")
     reduce_js = Code("function(k, v) { return mft.get('search')._searchReduce(k, v) }")
     scope =  {'search_terms': search_query_terms, 'coll_name': collection.name}
     #   lazily assuming "$all" (i.e. AND search) 
@@ -64,7 +64,7 @@ def map_reduce_nice_search_by_query(collection, search_query_string, query_obj=N
     """
     raw_search_results = map_reduce_search(collection, search_query_string)
     search_coll_name = raw_search_results['result']
-    map_js = Code("function() { mft.get('search')._niceSearchMapExt(this) }")
+    map_js = Code("function() { mft.get('search')._niceSearchMap.call(this) }")
     reduce_js = Code("function(k, v) { return mft.get('search')._niceSearchReduce(k, v) }")
     scope =  {'coll_name': collection.name}
     db = collection.database

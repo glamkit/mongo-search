@@ -166,32 +166,25 @@ var search = function (){
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
-    //
-    search._searchMap = function() {
-      mft.get('search')._searchMapExt(this);
-    }
-
     // when calling the map function from wrappers (eg python)
     // it seems that `this` is only bound to the record being mapped one function-call in
     // (ie doesn't work in nested function calls).
-    // for that reason, we need to have a one-arg function which takes the 
-    // record as an arg (presumably there was some reason for mongo *not* doing it that way 
-    // in the first place, but it seems to work well enough). We can then call it with
-    // a wrapper function similar to the _searchMap function above
-    search._searchMapExt = function(rec) {
+    // for that reason, in ext clients, call as 
+    // "function() { mft.get('search')._searchMap.call(this) }"
+    search._searchMap = function() {
         mft.debug_print("in searchMap with doc: ");
-        mft.debug_print(rec);
+        mft.debug_print(this);
         mft.debug_print("and search terms: ");
         mft.debug_print(search_terms);
         var search = mft.get('search');
-        var score = search.scoreRecordAgainstQuery(rec, search_terms);
+        var score = search.scoreRecordAgainstQuery(this, search_terms);
         mft.debug_print("doc score is: ");
         mft.debug_print(score)
         // potential optimisation: don't return very low scores
         // to do this optimisation, we'd probably need to adjust the scoring algorithm
         // to make scores that are absolutely comparable - so normalise against the query vector as well
         // as against the doc vector
-        emit(rec._id, score);
+        emit(this._id, score);
     };
     
     //
@@ -262,17 +255,12 @@ var search = function (){
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
-    //
     search._niceSearchMap = function() {
-      mft.get('search')._niceSearchMapExt(this);
-    }
-    
-    search._niceSearchMapExt = function(rec) {
-        mft.debug_print(rec, "in _niceSearchMap with doc: ");
+        mft.debug_print(this, "in _niceSearchMap with doc: ");
         mft.debug_print(coll_name, "and coll_name");
-        var doc = db[coll_name].findOne({_id: rec._id});
-        doc.score = rec.value;
-        emit(rec._id, doc);
+        var doc = db[coll_name].findOne({_id: this._id});
+        doc.score = this.value;
+        emit(this._id, doc);
     };
 
     //
