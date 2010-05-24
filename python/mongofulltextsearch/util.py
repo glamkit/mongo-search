@@ -200,6 +200,7 @@ class MongoDaemon(object):
         import subprocess
         import time
         import tempfile
+        import errno
         
         if dbpath is self.PRIVATE_TMP_DIR:
             dbpath = tempfile.mkdtemp()
@@ -209,9 +210,11 @@ class MongoDaemon(object):
             import os
             try:
                 os.makedirs(dbpath)
-            except OSError:
-                #this is so stupid - what if we don't have write perms, eh?
-                pass
+            except OSError, e:
+                if e.errno == errno.EEXIST: # path exists
+                    pass
+                else:
+                    raise
         settings['dbpath'] = dbpath
         if 'host' in settings:
             #specified w/ different spelling on client and server
@@ -253,9 +256,9 @@ class MongoDaemon(object):
     def destroy(self):
         if self.daemon:
             self.daemon.terminate()
-        if self.dbpath:
+        if self.settings['dbpath']:
             import shutil
-            shutil.rmtree(dbpath)
+            shutil.rmtree(self.settings['dbpath'])
         
 # //load an array of records into the specified collection
 # util.load_records_from_list = function(record_list, coll_name) {
