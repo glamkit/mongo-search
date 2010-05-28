@@ -1,6 +1,12 @@
-======================
-Mongo Full Text Search
-======================
+======================================
+Mongo Full Text Search Javascript Bits
+======================================
 
-A full text search for mongo, comprising server-side javascript support and
-extensions to the native pymongo library
+This will be server side support for a mongodb full text search, written in javascript.
+
+Tests
+-----
+
+  mongo jstests/_lodeRunner.js
+
+
