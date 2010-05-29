@@ -21,7 +21,7 @@ search.mapReduceIndexTheLot('search_works');
 var ranks_result ;
 var search_result ;
 
-search_result = search.mapReduceNiceSearch("search_works", "fish");
+search_result = search.mapReduceSearch("search_works", "fish");
 // print(result, "Search result for 'fish'");
 
 assert.eq(search_result.toArray(), [
@@ -48,7 +48,7 @@ assert.eq(search_result.toArray(), [
   ], "search_works_1"
 );
 
-search_result = search.mapReduceNiceSearch("search_works", "fish", {category: "B"});
+search_result = search.mapReduceSearch("search_works", "fish", {category: "B"});
 assert.eq(search_result.toArray(), [
         {
                 "_id" : 3,

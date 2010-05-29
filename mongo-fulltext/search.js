@@ -63,7 +63,7 @@ var search = function (){
     
     //
     // This JS function should never be called, except from javascript
-    // clients. See note at search.mapReduceSearch
+    // clients. See note at search.mapReduceRawSearch
     //
     search.mapReduceIndex = function(coll_name) {
         // full_text_index a given coll
@@ -128,7 +128,7 @@ var search = function (){
 
     //
     // This JS function should never be called, except from javascript
-    // clients. See note at search.mapReduceSearch
+    // clients. See note at search.mapReduceRawSearch
     //
     search.mapReduceTermScore = function(coll_name) {
         // full_text_index a given coll
@@ -155,7 +155,7 @@ var search = function (){
 
     //
     // This JS function should never be called, except from javascript
-    // clients. See note at search.mapReduceSearch
+    // clients. See note at search.mapReduceRawSearch
     //
     search.mapReduceIndexTheLot = function(coll_name) {
         search.mapReduceIndex(coll_name);
@@ -170,8 +170,8 @@ var search = function (){
     // it seems that `this` is only bound to the record being mapped one function-call in
     // (ie doesn't work in nested function calls).
     // for that reason, in ext clients, call as 
-    // "function() { mft.get('search')._searchMap.call(this) }"
-    search._searchMap = function() {
+    // "function() { mft.get('search')._rawSearchMap.call(this) }"
+    search._rawSearchMap = function() {
         mft.debug_print("in searchMap with doc: ");
         mft.debug_print(this);
         mft.debug_print("and search terms: ");
@@ -191,7 +191,7 @@ var search = function (){
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //
-    search._searchReduce = function(key, valueArray) {
+    search._rawSearchReduce = function(key, valueArray) {
         // once again, nearly trivial reduce in our case, since record _ids here map onto record _ids proper 1:1
         //
         return valueArray[0];
@@ -207,7 +207,7 @@ var search = function (){
     // 2) mapreduce isn't supported from db.eval 
     // as such, this is a "reference implementation", and a testing one
     //
-    search.mapReduceSearch = function(coll_name, search_query_string, keep_results) {
+    search.mapReduceRawSearch = function(coll_name, search_query_string, keep_results) {
         // searches a given coll's index
         // return a coll name containing the sorted results - permanent
         // nicely named if keep_results is true
@@ -218,8 +218,8 @@ var search = function (){
         mft.debug_print(search_query_terms);
         var index_coll_name = search.indexName(coll_name);
         var params = { mapreduce : index_coll_name,
-            map : search._searchMap,
-            reduce : search._searchReduce,
+            map : search._rawSearchMap,
+            reduce : search._rawSearchReduce,
             // this is a filter to ignore objects without the right term in the index - generated in a moment...
             query : {},
             // if we wish to keep these results around we'll need to specify a coll name
@@ -255,8 +255,8 @@ var search = function (){
     //
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
-    search._niceSearchMap = function() {
-        mft.debug_print(this, "in _niceSearchMap with doc: ");
+    search._searchMap = function() {
+        mft.debug_print(this, "in _searchMap with doc: ");
         mft.debug_print(coll_name, "and coll_name");
         var doc = db[coll_name].findOne({_id: this._id});
         doc.score = this.value;
@@ -267,7 +267,7 @@ var search = function (){
     // this function is designed to be called server side only,
     // by a mapreduce run. it should never be called manually
     //
-    search._niceSearchReduce = function(key, valueArray) {
+    search._searchReduce = function(key, valueArray) {
         // once again, trivial reduce in our case, since record _ids here map onto record _ids proper 1:1
         //
         return valueArray[0];
@@ -275,12 +275,12 @@ var search = function (){
 
     //
     // This JS function should never be called, except from javascript
-    // clients. See note at search.mapReduceSearch
+    // clients. See note at search.mapReduceRawSearch
     // 
-    search.mapReduceNiceSearch = function(coll_name, search_query_string, query_obj) {
+    search.mapReduceSearch = function(coll_name, search_query_string, query_obj) {
         // takes a search collection and a query dict and returns a temporary
         // coll worth of results including whole records.
-        // different from the mapReduceSearch in that it 
+        // different from the mapReduceRawSearch in that it 
         // 1) returns whole records, not just ranks
         // 2) can limit results by other criteria than fulltext search
         //
@@ -292,13 +292,13 @@ var search = function (){
         mft.debug_print(search_query_string, 'search_query_string');
         mft.debug_print(query_obj, 'query_obj');
         
-        raw_search_results = search.mapReduceSearch(coll_name, search_query_string);
+        raw_search_results = search.mapReduceRawSearch(coll_name, search_query_string);
         mft.debug_print(raw_search_results, 'raw_search_results');
         search_coll_name = raw_search_results.result;
         
         var params = { mapreduce : search_coll_name,
-            map : search._niceSearchMap,
-            reduce : search._niceSearchReduce,
+            map : search._searchMap,
+            reduce : search._searchReduce,
             sort : {"value.score": 1},
             scope : {coll_name: coll_name},
             verbose : true
