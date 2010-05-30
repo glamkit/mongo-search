@@ -9,7 +9,11 @@ var fixture = [
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers" }
 ];
 var conf = db.fulltext_config;
-conf.insert({'collection_name' : 'ranking_works', 'fields': {'title': 5, 'content': 1}, 'params': {'full_vector_norm': full_vector_norm}});
+conf.update({'collection_name' : 'ranking_works'},
+  {'collection_name' : 'ranking_works', 
+  'indexes': {'_default': {'fields': {'title': 5, 'content': 1}}, 
+              'title': {'fields': {'title': 1}}}},
+  true);
 
 
 mft.get('util').load_records_from_list(fixture, 'ranking_works');

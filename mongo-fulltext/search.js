@@ -65,10 +65,13 @@ var search = function (){
     // This JS function should never be called, except from javascript
     // clients. See note at search.mapReduceRawSearch
     //
-    search.mapReduceIndex = function(coll_name) {
+    search.mapReduceIndex = function(coll_name, index_name) {
         // full_text_index a given coll
+        if (typeof(index_name) == 'undefined') {
+          index_name = '_default';
+        }
         var search = mft.get('search'); //not guaranteed to have been done!
-        var index_coll_name = search.indexName(coll_name);
+        var index_coll_name = search.indexCollName(coll_name, index_name);
         mft.debug_print(index_coll_name, "index_coll_name");
         var res = db.runCommand(
           { mapreduce : coll_name,
@@ -77,12 +80,12 @@ var search = function (){
             out : index_coll_name,
             verbose : true,
             scope: {
-                indexed_fields: search.indexedFieldsAndWeights(coll_name)
+                indexed_fields: search.indexedFieldsAndWeights(coll_name, index_name)
             }
          }
         );
         var indexes_required = {};
-        indexes_required[("value._extracted_terms")] =1;
+        indexes_required[("value._extracted_terms")] = 1;
         db[index_coll_name].ensureIndex(
             indexes_required,
             {background:true}
@@ -130,11 +133,14 @@ var search = function (){
     // This JS function should never be called, except from javascript
     // clients. See note at search.mapReduceRawSearch
     //
-    search.mapReduceTermScore = function(coll_name) {
+    search.mapReduceTermScore = function(coll_name, index_name) {
         // full_text_index a given coll
         var search = mft.get('search'); //not guaranteed to have been done!
-        var index_coll_name = search.indexName(coll_name);
-        var term_score_name = search.termScoreName(coll_name);
+        if (typeof(index_name) == 'undefined') {
+          index_name = '_default';
+        }
+        var index_coll_name = search.indexCollName(coll_name, index_name);
+        var term_score_name = search.termScoreName(coll_name, index_name);
         mft.debug_print(index_coll_name, "index_coll_name");
         mft.debug_print(term_score_name, "term_score_name");
         var res = db.runCommand(
@@ -158,9 +164,15 @@ var search = function (){
     // clients. See note at search.mapReduceRawSearch
     //
     search.mapReduceIndexTheLot = function(coll_name) {
-        search.mapReduceIndex(coll_name);
-        search.mapReduceTermScore(coll_name);
-    }
+        var search = mft.get('search'); //not guaranteed to have been done!
+        db.fulltext_config.ensureIndex({collection_name: 1}, {unique: true});
+        index_names = search.getAllIndexNames(coll_name)
+        for (i in index_names) {
+          mft.debug_print(index_names[i], "creating index for index_name");
+          search.mapReduceIndex(coll_name, index_names[i]);
+          search.mapReduceTermScore(coll_name, index_names[i]);
+        }
+    };
     
     
     //
@@ -179,7 +191,7 @@ var search = function (){
         var search = mft.get('search');
         var score = search.scoreRecordAgainstQuery(this, search_terms);
         mft.debug_print("doc score is: ");
-        mft.debug_print(score)
+        mft.debug_print(score);
         // potential optimisation: don't return very low scores
         // to do this optimisation, we'd probably need to adjust the scoring algorithm
         // to make scores that are absolutely comparable - so normalise against the query vector as well
@@ -207,16 +219,35 @@ var search = function (){
     // 2) mapreduce isn't supported from db.eval 
     // as such, this is a "reference implementation", and a testing one
     //
-    search.mapReduceRawSearch = function(coll_name, search_query_string, keep_results) {
+    search.mapReduceRawSearch = function(coll_name, search_query, keep_results) {
         // searches a given coll's index
         // return a coll name containing the sorted results - permanent
         // nicely named if keep_results is true
         //
         var search = mft.get('search');
+        var search_query_string = null;
+        var index_name;
+        if (typeof(search_query) == 'string') {
+          index_name = '_default';
+          search_query_string = search_query;
+        } else {
+          // for non-default field, we expect a search_query like {title: 'foo bar'}
+          //this seems a dumb way to get a single field/value pair out of an object
+          for (requested_index_name in search_query) {
+            if (search_query_string !== null) {
+              // if it's already been set, it means multiple field values are set on the object
+              throw("Can't search multiple indexes in a single query.");
+            }
+            search_query_string = search_query[requested_index_name];
+            index_name = requested_index_name;
+          }
+        }
+            
         var search_query_terms = search.processQueryString(search_query_string);
         mft.debug_print("searching using: ");
         mft.debug_print(search_query_terms);
-        var index_coll_name = search.indexName(coll_name);
+        var index_coll_name = search.indexCollName(coll_name, index_name);
+        mft.debug_print(index_coll_name, "index_coll_name");
         var params = { mapreduce : index_coll_name,
             map : search._rawSearchMap,
             reduce : search._rawSearchReduce,
@@ -224,7 +255,7 @@ var search = function (){
             query : {},
             // if we wish to keep these results around we'll need to specify a coll name
             // out : "searchfun",
-            scope : {search_terms: search_query_terms, coll_name: coll_name},
+            scope : {search_terms: search_query_terms, coll_name: coll_name, index_name: index_name},
             verbose : true
         };
         
@@ -234,7 +265,7 @@ var search = function (){
         params.query[("value._extracted_terms")] = { $all: search_query_terms };
         
         if (keep_results) {
-            params.out = search.resultName(coll_name, search_query_terms);
+            params.out = search.resultName(coll_name, index_name, search_query_terms);
         }
         
         var res = db.runCommand(params);
@@ -277,7 +308,7 @@ var search = function (){
     // This JS function should never be called, except from javascript
     // clients. See note at search.mapReduceRawSearch
     // 
-    search.mapReduceSearch = function(coll_name, search_query_string, query_obj) {
+    search.mapReduceSearch = function(coll_name, search_query, query_obj) {
         // takes a search collection and a query dict and returns a temporary
         // coll worth of results including whole records.
         // different from the mapReduceRawSearch in that it 
@@ -289,10 +320,10 @@ var search = function (){
         }
         var search = mft.get('search');
         mft.debug_print(coll_name, 'coll_name');
-        mft.debug_print(search_query_string, 'search_query_string');
+        mft.debug_print(search_query, 'search_query');
         mft.debug_print(query_obj, 'query_obj');
         
-        raw_search_results = search.mapReduceRawSearch(coll_name, search_query_string);
+        raw_search_results = search.mapReduceRawSearch(coll_name, search_query);
         mft.debug_print(raw_search_results, 'raw_search_results');
         search_coll_name = raw_search_results.result;
         
@@ -331,46 +362,66 @@ var search = function (){
     };
     
     //generate a coll name for a collection index
-    search.indexName = function(coll_name) {
+    search.indexCollName = function(coll_name, index_name) {
         //calculate the collection name for the index of a given collection
         var search = mft.get('search');
-        return search.INDEX_NAMESPACE + "." + coll_name ;
+        return search.INDEX_NAMESPACE + "." + coll_name + "." + index_name ;
     };
     //generate a coll for some search results (if we wish to stash them)
-    search.resultName = function(coll_name, search_terms) {
+    search.resultName = function(coll_name, index_name, search_terms) {
         //calculate the collection name for the index of a given collection
         var search = mft.get('search');
-        return search.RESULT_NAMESPACE + "." + coll_name +  "." + search.encodeQueryString(search_terms);
+        return search.RESULT_NAMESPACE + "." + coll_name +  "." + index_name + "." + search.encodeQueryString(search_terms);
     };
     
-    search.termScoreName = function(coll_name) {
+    search.termScoreName = function(coll_name, index_name) {
         //calculate the collection name for the term scores (probably IDF) of a given collection
         var search = mft.get('search');
-        return search.TERM_SCORE_NAMESPACE + "." + coll_name;
+        return search.TERM_SCORE_NAMESPACE + "." + coll_name + "." + index_name;
     };
         
-    search.indexedFieldsAndWeights = function(coll_name) {
+    search.indexedFieldsAndWeights = function(coll_name, index_name) {
       // we expect a special collection named 'fulltext_config', with items having elems 'collection_name', 'fields', and 'params'
-      // with 'fields' having keys being the field name, and the values being the weight. e.g.:  
-      //> fc = {collection_name: 'gallery_collection_items', fields: {'title': 10, 'further_information': 1}}// 
-      // {
-      //         "collection_name" : "gallery_collection_items",
-      //         "fields" : {
-      //                 "title" : 10,
-      //                 "further_information" : 1
-      //         }
-      //         "params": {
-      //            "full_vector_norm": 0
-      //        }
-      // }
+      // with 'fields' having keys being the field name, and the values being the weight. e.g.:      
+     //  {
+     //    "collection_name" : "gallery_collection_items",
+     //      "indexes": {
+     //        "title": {
+     //          "fields" : { "title": 1}
+     //        }
+     //        "further_information": {
+     //          "fields": {"further_information" : 1}
+     //        }
+     //        "_default": {
+     //          "fields" : {
+     //            "title" : 10,
+     //            "further_information" : 1
+     //          }
+     //        }
+     //    }
+     // } 
       // > db.fulltext_config.save(fc)
       // >
       // full_vector_norm is whether to calculate all the doc vector components and normalise properly, or just guess that they're 1
         // saves time if we don't have precomputed vectors, but doesn't get quite the same results
       collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
-      return collection_conf.fields;
+      if (typeof(index_name) == 'undefined') {
+        index_name = '_default';
+      }
+      return collection_conf.indexes[index_name].fields;
     };
-
+    
+    search.getAllIndexNames = function(coll_name) {
+      index_names = [];
+      collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
+      for (index_info in collection_conf.indexes) {
+        index_names.push(index_info);
+      }
+      mft.debug_print(index_names, "index_names");
+      return index_names;
+    };
+    
+      
     
     search.getParams = function(coll_name) {
       collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
@@ -382,6 +433,7 @@ var search = function (){
     search.scoreRecordAgainstQuery = function(record, query_terms) {
       mft.debug_print("in scoreRecordAgainstQuery with coll_name: ");
       mft.debug_print(coll_name);
+      mft.debug_print(index_name, "index_name");
       mft.debug_print("and record: ");
       mft.debug_print(record);
       var search = mft.get("search");
@@ -393,21 +445,18 @@ var search = function (){
       mft.debug_print("query_terms_set=" + tojson(query_terms_set));
       
       if (typeof idf_cache === 'undefined') {
-        idf_cache = {}
+        idf_cache = {};
       }
-      var record_vec_sum_sq = 0;
-      mft.debug_print("getParams");
-      mft.debug_print(search.getParams(coll_name));
-      var full_vector_norm = 1;
+      var full_vector_norm = 1; // hardcode for now - we'll probably always want this?
       var getCachedTermIdf = function(x) {
         var term_idf = idf_cache[term];
         if (term_idf === undefined) {
-          term_idf = search.getTermIdf(coll_name, term);
+          term_idf = search.getTermIdf(coll_name, index_name, term);
           idf_cache[term] = term_idf;
         }
         return term_idf;
       };
-      var rec_vec = {}
+      var rec_vec = {};
       var dot_prod = 0;
       for (var j = 0; j < record_terms.length; j++) {
         var term = record_terms[j];
@@ -445,17 +494,17 @@ var search = function (){
       // could probably take some shortcuts here w/o too much loss of accuracy
     };
 
-    search.getTermIdf = function(coll_name, term) {
+    search.getTermIdf = function(coll_name, index_name, term) {
       var search = mft.get("search");
-      var score_record = db[search.termScoreName(coll_name)].findOne({_id: term});
-      mft.debug_print(search.termScoreName(coll_name), "term_score_coll_name");
+      var score_record = db[search.termScoreName(coll_name, index_name)].findOne({_id: term});
+      mft.debug_print(search.termScoreName(coll_name, index_name), "term_score_coll_name");
       mft.debug_print(term, "term");
       mft.debug_print(score_record, "score_record");
       if (score_record === null) {
         mft.warning_print("no score cached for term " + term);
         return 0.0;
       } else {
-        var score = score_record.value
+        var score = score_record.value;
         return score > search.MIN_TERM_SCORE ? score : 0.0;
       }
     };

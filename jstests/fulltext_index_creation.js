@@ -1,11 +1,22 @@
 load('mongo-fulltext/_load.js');
 var mftsearch = mft.get('search');
 
+var result ;
+var conf = db.fulltext_config;
+conf.update({'collection_name' : 'fulltext_index_creation'},
+  {'collection_name' : 'fulltext_index_creation', 
+  'indexes': {'_default': {'fields': {'title': 5, 'content': 1}}, 
+              'title': {'fields': {'title': 1}}}},
+  true);
+
 coll_name = 'fulltext_index_creation';
 var s = db[coll_name];
 s.drop();
-var i = db[mftsearch.indexName(coll_name)];
-i.drop()
+for (index_name in mftsearch.getAllIndexNames(coll_name)) {
+  mft.debug_print(index_name, "index_name");
+  db[mftsearch.indexCollName(coll_name, index_name)].drop();
+}
+
 
 var fixture = [
     { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory" },
@@ -15,18 +26,17 @@ var fixture = [
 
 mft.get('util').load_records_from_list(fixture, 'fulltext_index_creation');
 
-var result ;
-var conf = db.fulltext_config;
-conf.insert({'collection_name' : 'fulltext_index_creation', 'fields': {'title': 5, 'content': 1}});
 
 // TODO: add index on collection name (should we have an _id attribute too?)
 
 // map reduce from db.eval is not supported - http://groups.google.com/group/mongodb-user/browse_frm/thread/546380c7f546cb94/e1d9c7cc9807f213#e1d9c7cc9807f213
 // all mapreduce-generated doucments have the form {_id: 123, value: doc}
 
-mftsearch.mapReduceIndex('fulltext_index_creation');
+mftsearch.mapReduceIndexTheLot('fulltext_index_creation');
 
-assert.eq(i.find().toArray(), [
+var default_idx = db[mftsearch.indexCollName(coll_name, '_default')];
+
+assert.eq(default_idx.find().toArray(), [
     { "_id" : 1,
       "value" : { "_extracted_terms" : [
             "fish",
