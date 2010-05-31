@@ -1,5 +1,5 @@
 "use strict";
-mft.DEBUG = true;
+// mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -125,7 +125,8 @@ var search = function (){
       mft.debug_print("and value:");
       mft.debug_print(termSum);
       mft.debug_print(num_docs_in_coll, "num_docs_in_coll");
-      return Math.log(num_docs_in_coll) - Math.log(termSum);
+      var adjTermSum = termSum == num_docs_in_coll ? termSum - 1 : termSum // if a term appears in every doc, still has non-zero IDF
+      return Math.log(num_docs_in_coll) - Math.log(adjTermSum);
     };
 
 
