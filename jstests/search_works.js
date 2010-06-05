@@ -9,7 +9,7 @@ var fixture = [
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels", "category": "B" },
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers", "category": "B" }
 ];
-var conf = db.fulltext_config;
+var conf = db.search_.config;
 conf.update({'collection_name' : 'search_works'},
   {'collection_name' : 'search_works', 
   'indexes': {'default_': {'fields': {'title': 5, 'content': 1}}, 

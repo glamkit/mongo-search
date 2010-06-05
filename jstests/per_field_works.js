@@ -9,7 +9,7 @@ var fixture = [
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels and no fish are involved", "category": "B" },
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers", "category": "B" }
 ];
-var conf = db.fulltext_config;
+var conf = db.search_.config;
 conf.update({'collection_name' : 'per_field_works'},
   {
     'collection_name' : 'per_field_works', 

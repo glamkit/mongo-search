@@ -166,7 +166,7 @@ var search = function (){
     //
     search.mapReduceIndexTheLot = function(coll_name) {
         var search = mft.get('search'); //not guaranteed to have been done!
-        db.fulltext_config.ensureIndex({collection_name: 1}, {unique: true});
+        db.search_.config.ensureIndex({collection_name: 1}, {unique: true});
         index_names = search.getAllIndexNames(coll_name)
         for (i in index_names) {
           mft.debug_print(index_names[i], "creating index for index_name");
@@ -382,7 +382,7 @@ var search = function (){
     };
         
     search.indexedFieldsAndWeights = function(coll_name, index_name) {
-      // we expect a special collection named 'fulltext_config', with items having elems 'collection_name', 'fields', and 'params'
+      // we expect a special collection named 'search_.config', with items having elems 'collection_name', 'fields', and 'params'
       // with 'fields' having keys being the field name, and the values being the weight. e.g.:      
      //  {
      //    "collection_name" : "gallery_collection_items",
@@ -401,20 +401,34 @@ var search = function (){
      //        }
      //    }
      // } 
-      // > db.fulltext_config.save(fc)
+      // > db.search_.config.save(fc)
       // >
       // full_vector_norm is whether to calculate all the doc vector components and normalise properly, or just guess that they're 1
         // saves time if we don't have precomputed vectors, but doesn't get quite the same results
-      collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
+      collection_conf = db.search_.config.findOne({collection_name: coll_name});
       if (typeof(index_name) == 'undefined') {
         index_name = 'default_';
       }
       return collection_conf.indexes[index_name].fields;
     };
     
+    search.configureSearchIndex = function(coll_name, fields, index_name) {
+      //replace or insert the search configuration on collection named `coll_name` with search fields `fields`
+      // (an array of fields and integer weightings)
+      // if the index_name is not supplied, it defaults to 'default_', the default seach index
+      // TODO: should this force a re-index?
+      if (typeof(index_name) == 'undefined') {
+        index_name = 'default_';
+      }
+      db.search_.config.ensureIndex({collection_name: 1}, {unique: True});
+      collection_conf = db.search_.config.findOne({collection_name: coll_name});
+      collection_conf.indexes[index_name] = fields;
+      db.search_.config.upsert({collection_name: coll_name}, collection_conf);
+    }
+      
     search.getAllIndexNames = function(coll_name) {
       index_names = [];
-      collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
+      collection_conf = db.search_.config.findOne({collection_name: coll_name});
       for (index_info in collection_conf.indexes) {
         index_names.push(index_info);
       }
@@ -422,14 +436,11 @@ var search = function (){
       return index_names;
     };
     
-      
-    
     search.getParams = function(coll_name) {
-      collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
+      collection_conf = db.search_.config.findOne({collection_name: coll_name});
       mft.debug_print("retrieved config: " + tojson(collection_conf));
       return collection_conf.params;
     };
-    
     
     search.scoreRecordAgainstQuery = function(record, query_terms) {
       mft.debug_print("in scoreRecordAgainstQuery with coll_name: ");

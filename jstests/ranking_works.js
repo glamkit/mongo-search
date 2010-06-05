@@ -8,7 +8,7 @@ var fixture = [
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels" },
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers" }
 ];
-var conf = db.fulltext_config;
+var conf = db.search_.config;
 conf.update({'collection_name' : 'ranking_works'},
   {'collection_name' : 'ranking_works', 
   'indexes': {'default_': {'fields': {'title': 5, 'content': 1}}, 
