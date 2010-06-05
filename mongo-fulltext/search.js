@@ -1,5 +1,5 @@
 "use strict";
-// mft.DEBUG = true;
+//mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -412,18 +412,38 @@ var search = function (){
       return collection_conf.indexes[index_name].fields;
     };
     
-    search.configureSearchIndex = function(coll_name, fields, index_name) {
-      //replace or insert the search configuration on collection named `coll_name` with search fields `fields`
+    search.configureSearchIndexFields = function(coll_name, fields, index_name) {
+      //replace or insert the search configuration for index named `index_name
+      // on collection named `coll_name` with search fields `fields`
       // (an array of fields and integer weightings)
       // if the index_name is not supplied, it defaults to 'default_', the default seach index
       // TODO: should this force a re-index?
-      if (typeof(index_name) == 'undefined') {
+      if (index_name === undefined) {
         index_name = 'default_';
       }
-      db.search_.config.ensureIndex({collection_name: 1}, {unique: True});
+      db.search_.config.ensureIndex({collection_name: 1}, {unique: true, background: true});
+      for (fieldname in fields) {
+        if (typeof(fieldname) != 'string') {
+          throw("Invalid field specification - field name must be a string, (you supplied '" + 
+            tojson(fieldname) + "', of type " + typeof(fieldname) + ")");
+        }
+        fieldval = fields[fieldname];
+        if (typeof(fieldval) != 'number') {
+          throw("Invalid field specification - field value must be an integer weighting, (you supplied '" + 
+            tojson(fieldval) + "', of type " + typeof(fieldval) + ")");
+        }
+      }
       collection_conf = db.search_.config.findOne({collection_name: coll_name});
-      collection_conf.indexes[index_name] = fields;
-      db.search_.config.upsert({collection_name: coll_name}, collection_conf);
+      if (collection_conf === null) {
+        collection_conf = {collection_name: coll_name};
+      }
+      if (collection_conf.indexes === undefined ) {
+        collection_conf.indexes = { };
+      }
+      collection_conf.indexes[index_name] = { };
+      collection_conf.indexes[index_name].fields = fields;
+      mft.debug_print("Updating collection name '" + coll_name + "' with config " + tojson(collection_conf));
+      db.search_.config.update({collection_name: coll_name}, collection_conf, true);
     }
       
     search.getAllIndexNames = function(coll_name) {

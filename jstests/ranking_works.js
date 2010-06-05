@@ -8,16 +8,11 @@ var fixture = [
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels" },
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers" }
 ];
-var conf = db.search_.config;
-conf.update({'collection_name' : 'ranking_works'},
-  {'collection_name' : 'ranking_works', 
-  'indexes': {'default_': {'fields': {'title': 5, 'content': 1}}, 
-              'title': {'fields': {'title': 1}}}},
-  true);
-
+var search = mft.get('search');
+search.configureSearchIndexFields('ranking_works', {'title': 5, 'content': 1});
+search.configureSearchIndexFields('ranking_works', {'title': 1}, 'title');
 
 mft.get('util').load_records_from_list(fixture, 'ranking_works');
-var search = mft.get('search');
 search.mapReduceIndexTheLot('ranking_works');
 
 var result ;

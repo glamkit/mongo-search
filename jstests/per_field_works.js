@@ -9,21 +9,12 @@ var fixture = [
     { "_id" : 2, "title" : "dogs", "content" : "whippets kick mongrels and no fish are involved", "category": "B" },
     { "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers", "category": "B" }
 ];
-var conf = db.search_.config;
-conf.update({'collection_name' : 'per_field_works'},
-  {
-    'collection_name' : 'per_field_works', 
-    'indexes': {
-      'default_': {'fields': {'title': 5, 'content': 1}}, 
-      // 'content': {'fields': {'content': 1}}, 
-      'title': {'fields': {'title': 1}}
-    }
-  },
-  true);
+var search = mft.get('search');
 
+search.configureSearchIndexFields('per_field_works', {'title': 5, 'content': 1});
+search.configureSearchIndexFields('per_field_works', {'title': 1}, 'title');
 
 mft.get('util').load_records_from_list(fixture, 'per_field_works');
-var search = mft.get('search');
 
 search.mapReduceIndexTheLot('per_field_works');
 

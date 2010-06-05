@@ -2,12 +2,8 @@ load('mongo-fulltext/_load.js');
 var mftsearch = mft.get('search');
 
 var result ;
-var conf = db.search_.config;
-conf.update({'collection_name' : 'fulltext_index_creation'},
-  {'collection_name' : 'fulltext_index_creation', 
-  'indexes': {'default_': {'fields': {'title': 5, 'content': 1}}, 
-              'title': {'fields': {'title': 1}}}},
-  true);
+mftsearch.configureSearchIndexFields('fulltext_index_creation', {'title': 5, 'content': 1});
+mftsearch.configureSearchIndexFields('fulltext_index_creation', {'title': 1}, 'title');
 
 coll_name = 'fulltext_index_creation';
 var s = db[coll_name];
