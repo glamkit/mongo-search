@@ -11,12 +11,16 @@ var fixture = [
 ];
 var search = mft.get('search');
 
+search.configureSearchIndexFields('per_field_works', {'content': 1}); // initial incorrect config, should get overwritten
+search.mapReduceIndexTheLot('per_field_works');
+
 search.configureSearchIndexFields('per_field_works', {'title': 5, 'content': 1});
+search.configureSearchIndexFields('per_field_works', {'content': 1}, 'content');
 search.configureSearchIndexFields('per_field_works', {'title': 1}, 'title');
+search.mapReduceIndexTheLot('per_field_works');
 
 mft.get('util').load_records_from_list(fixture, 'per_field_works');
 
-search.mapReduceIndexTheLot('per_field_works');
 
 var search_result ;
 
@@ -42,10 +46,18 @@ search_result = search.mapReduceSearch("per_field_works", {content: "dogs"});
 assert.eq(search_result.toArray(), [
     {"_id": 1, "value": { "_id" : 1, "title" : "fish", "content" : "groupers like John Dory are not dogs", "category": "A", "score": 0.1757748711858504 }}],
     "per_field_works_4");
-    
+
+search.removeSearchIndex('per_field_works', 'content'); // no longer needed, but title search should be unaffected
+search_result = search.mapReduceSearch("per_field_works", {content: "dogs"});
+assert.eq(search_result.toArray(), [ ], // dropped default index - shouldn't find anything searching on it
+    "per_field_works_5");
+
 search_result = search.mapReduceSearch("per_field_works", {"title": "fish"}, {category: "B"});
 assert.eq(search_result.toArray(), [
     {"_id": 3, "value":{ "_id" : 3, "title" : "dogs & fish", "content" : "whippets kick groupers", "category": "B", "score": 0.7071067811865475  }}],
-  "per_field_works_5");
+  "per_field_works_6");
  
-
+search.removeSearchIndex('per_field_works', 'title'); // no longer needed, but title search should be unaffected
+search_result = search.mapReduceSearch("per_field_works", {"title": "fish"});
+assert.eq(search_result.toArray(), [ ], // we've dropped the title index too, so don't expect results
+  "per_field_works_7");

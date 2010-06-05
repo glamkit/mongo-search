@@ -1,5 +1,5 @@
 "use strict";
-//mft.DEBUG = true;
+mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
@@ -445,7 +445,39 @@ var search = function (){
       mft.debug_print("Updating collection name '" + coll_name + "' with config " + tojson(collection_conf));
       db.search_.config.update({collection_name: coll_name}, collection_conf, true);
     }
-      
+    
+    search.removeSearchIndex = function(coll_name, index_name) {
+      // removes the named index for collection `coll_name` 
+      // from the index config, and also removes associated index data
+      // if you want to drop index 'default_', it must be explictly requested
+      // to avoid accidental deletions
+      if (index_name === undefined) {
+        index_name = 'default_';
+      }
+      collection_conf = db.search_.config.findOne({collection_name: coll_name});
+      if (collection_conf === null || collection_conf.indexes === undefined) {
+        mft.debug_print("No valid config entry found for collection '" + coll_name + "'");
+        return false; // no such index existed, as no colelction config existed
+      }
+      if (collection_conf.indexes[index_name] === undefined) {
+        mft.debug_print("No entry found for index '" + index_name + "' on collection '" + coll_name + "'");
+        return false;
+      }
+      delete collection_conf.indexes[index_name];
+      db.search_.config.update({collection_name: coll_name}, collection_conf, true);
+      mft.get('search').dropSearchIndexContent(coll_name, index_name);
+      return true;      
+    }
+    
+    search.dropSearchIndexContent = function(coll_name, index_name) {
+      // removes the search index content associated with `coll_name` and `index_name
+      // you must explictly request 'default_' to drop it
+      mft.debug_print("Removing collections " + search.indexCollName(coll_name, index_name) + " and " +
+        search.termScoreName(coll_name, index_name));
+      db[search.indexCollName(coll_name, index_name)].drop();
+      db[search.termScoreName(coll_name, index_name)].drop();
+    }
+    
     search.getAllIndexNames = function(coll_name) {
       index_names = [];
       collection_conf = db.search_.config.findOne({collection_name: coll_name});
