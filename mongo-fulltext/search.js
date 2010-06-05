@@ -68,7 +68,7 @@ var search = function (){
     search.mapReduceIndex = function(coll_name, index_name) {
         // full_text_index a given coll
         if (typeof(index_name) == 'undefined') {
-          index_name = '_default';
+          index_name = 'default_';
         }
         var search = mft.get('search'); //not guaranteed to have been done!
         var index_coll_name = search.indexCollName(coll_name, index_name);
@@ -138,7 +138,7 @@ var search = function (){
         // full_text_index a given coll
         var search = mft.get('search'); //not guaranteed to have been done!
         if (typeof(index_name) == 'undefined') {
-          index_name = '_default';
+          index_name = 'default_';
         }
         var index_coll_name = search.indexCollName(coll_name, index_name);
         var term_score_name = search.termScoreName(coll_name, index_name);
@@ -229,7 +229,7 @@ var search = function (){
         var search_query_string = null;
         var index_name;
         if (typeof(search_query) == 'string') {
-          index_name = '_default';
+          index_name = 'default_';
           search_query_string = search_query;
         } else {
           // for non-default field, we expect a search_query like {title: 'foo bar'}
@@ -393,7 +393,7 @@ var search = function (){
      //        "further_information": {
      //          "fields": {"further_information" : 1}
      //        }
-     //        "_default": {
+     //        'default_': {
      //          "fields" : {
      //            "title" : 10,
      //            "further_information" : 1
@@ -407,7 +407,7 @@ var search = function (){
         // saves time if we don't have precomputed vectors, but doesn't get quite the same results
       collection_conf = db.fulltext_config.findOne({collection_name: coll_name});
       if (typeof(index_name) == 'undefined') {
-        index_name = '_default';
+        index_name = 'default_';
       }
       return collection_conf.indexes[index_name].fields;
     };

@@ -5,7 +5,7 @@ var result ;
 var conf = db.fulltext_config;
 conf.update({'collection_name' : 'fulltext_index_creation'},
   {'collection_name' : 'fulltext_index_creation', 
-  'indexes': {'_default': {'fields': {'title': 5, 'content': 1}}, 
+  'indexes': {'default_': {'fields': {'title': 5, 'content': 1}}, 
               'title': {'fields': {'title': 1}}}},
   true);
 
@@ -34,7 +34,7 @@ mft.get('util').load_records_from_list(fixture, 'fulltext_index_creation');
 
 mftsearch.mapReduceIndexTheLot('fulltext_index_creation');
 
-var default_idx = db[mftsearch.indexCollName(coll_name, '_default')];
+var default_idx = db[mftsearch.indexCollName(coll_name, 'default_')];
 
 assert.eq(default_idx.find().toArray(), [
     { "_id" : 1,

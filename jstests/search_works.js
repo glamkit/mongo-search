@@ -12,7 +12,7 @@ var fixture = [
 var conf = db.fulltext_config;
 conf.update({'collection_name' : 'search_works'},
   {'collection_name' : 'search_works', 
-  'indexes': {'_default': {'fields': {'title': 5, 'content': 1}}, 
+  'indexes': {'default_': {'fields': {'title': 5, 'content': 1}}, 
               'title': {'fields': {'title': 1}}}},
   true);
 

@@ -14,7 +14,7 @@ conf.update({'collection_name' : 'per_field_works'},
   {
     'collection_name' : 'per_field_works', 
     'indexes': {
-      '_default': {'fields': {'title': 5, 'content': 1}}, 
+      'default_': {'fields': {'title': 5, 'content': 1}}, 
       // 'content': {'fields': {'content': 1}}, 
       'title': {'fields': {'title': 1}}
     }
@@ -37,7 +37,7 @@ assert.eq(search_result.toArray(), [
     ],
  "per_field_works_1");
 
-var search_result_2 = search.mapReduceSearch("per_field_works", {"_default": "dog"});
+var search_result_2 = search.mapReduceSearch("per_field_works", {'default_': "dog"});
 assert.eq(search_result.toArray(), search_result_2.toArray(),
  "per_field_works_2");
 
