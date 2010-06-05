@@ -1,5 +1,5 @@
 "use strict";
-mft.DEBUG = true;
+//mft.DEBUG = true;
 mft.WARNING = true;
 
 var search = function (){
