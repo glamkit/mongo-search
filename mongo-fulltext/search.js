@@ -190,7 +190,8 @@ var search = function (){
         mft.debug_print("and search terms: ");
         mft.debug_print(search_terms);
         var search = mft.get('search');
-        var score = search.scoreRecordAgainstQuery(this, search_terms);
+        // coll_name and index_name must be set in the global scope
+        var score = search.scoreRecordAgainstQuery(coll_name, index_name, this, search_terms);
         mft.debug_print("doc score is: ");
         mft.debug_print(score);
         // potential optimisation: don't return very low scores
@@ -494,7 +495,7 @@ var search = function (){
       return collection_conf.params;
     };
     
-    search.scoreRecordAgainstQuery = function(record, query_terms) {
+    search.scoreRecordAgainstQuery = function(coll_name, index_name, record, query_terms) {
       mft.debug_print("in scoreRecordAgainstQuery with coll_name: ");
       mft.debug_print(coll_name);
       mft.debug_print(index_name, "index_name");
