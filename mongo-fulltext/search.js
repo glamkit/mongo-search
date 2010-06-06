@@ -125,7 +125,7 @@ var search = function (){
       mft.debug_print("and value:");
       mft.debug_print(termSum);
       mft.debug_print(num_docs_in_coll, "num_docs_in_coll");
-      var adjTermSum = termSum == num_docs_in_coll ? termSum - 1 : termSum // if a term appears in every doc, still has non-zero IDF
+      var adjTermSum = termSum == num_docs_in_coll ? termSum - 1 : termSum; // if a term appears in every doc, still has non-zero IDF
       return Math.log(num_docs_in_coll) - Math.log(adjTermSum);
     };
 
@@ -434,7 +434,7 @@ var search = function (){
             tojson(fieldval) + "', of type " + typeof(fieldval) + ")");
         }
       }
-      collection_conf = db.search_.config.findOne({collection_name: coll_name});
+      var collection_conf = db.search_.config.findOne({collection_name: coll_name});
       if (collection_conf === null) {
         collection_conf = {collection_name: coll_name};
       }
